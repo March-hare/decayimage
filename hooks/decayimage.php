@@ -107,7 +107,7 @@ class decayimage {
     $site = url::site();
 
 $new_js = <<<ENDJS
-var showIncidentMapOrig = showIncidentMap;
+  var showIncidentMapOrig = showIncidentMap;
   showIncidentMap = (function() {
   //return showIncidentMapOrig();
 
@@ -116,12 +116,15 @@ var showIncidentMapOrig = showIncidentMap;
       
   // Get all current layers with the same name and remove them from the map
   currentLayers = map.getLayersByName(layerName);
+  // TODO: I am not really sure if this is needed
+  currentLayersIcons = map.getLayersByName(layerName + 'Category Icons');
   for (var i = 0; i < currentLayers.length; i++)
   {
     map.removeLayer(currentLayers[i]);
+    map.removeLayer(currentLayersIcons[i]);
   }
 
-  // Default styling for the incidents
+  // Default styling for the reports
   var reportStyle = OpenLayers.Util.extend({}, 
     OpenLayers.Feature.Vector.style["default"]);
 
@@ -132,13 +135,29 @@ var showIncidentMapOrig = showIncidentMap;
   // Does this make the total point radius = 8+3/2?
   reportStyle.strokeWidth = 3;
   reportStyle.graphicZIndex = 2;
-      
-  // create simple vector layer
+
+  // Default style for the associated report category icons 
+  var iconStyle =  OpenLayers.Util.extend({}, reportStyle);
+  iconStyle.graphicOpacity = 1;
+  iconStyle.graphicZIndex = 1;
+  iconStyle.graphic = true;
+  iconStyle.graphicHeight = 25;
+
+  // create simple vector layer where the report icons will be placed
   var vLayer = new OpenLayers.Layer.Vector(layerName, {
     projection: new OpenLayers.Projection("EPSG:4326"),
     style: reportStyle,
     rendererOptions: {zIndexing: true}
   });
+
+  // create a seperate vector layer where the icons associated with the report
+  // categories will be placed.
+  var vLayerIcons = new OpenLayers.Layer.Vector(layerName + ' Category Icons', {
+    projection: new OpenLayers.Projection("EPSG:4326"),
+    style: iconStyle,
+    rendererOptions: {zIndexing: true}
+  });
+
       
   // URL to be used for fetching the incidents
   fetchURL = "{$site}json/index";
@@ -165,15 +184,10 @@ var showIncidentMapOrig = showIncidentMap;
 
       // create a feature vector from the point and style
       var feature = new OpenLayers.Feature.Vector(incidentPoint, null, reportStyle);
+      feature.attributes = val.properties;
       vLayer.addFeatures([feature]);
 
-      var incidentStyle =  OpenLayers.Util.extend({}, reportStyle);
-      incidentStyle.graphicOpacity = 1;
-      incidentStyle.graphicZIndex = 1;
-      incidentStyle.graphic = true;
-      incidentStyle.graphicHeight = 25;
-
-      var offsetRadius = reportStyle.pointRadius+incidentStyle.graphicHeight/2;
+      var offsetRadius = reportStyle.pointRadius+iconStyle.graphicHeight/2;
       // if the icon is set then apply it (this requires controller mod)
       // else if icon is an array, then place the icons around the incident
       if (val.properties.icon instanceof Array) {
@@ -185,37 +199,35 @@ var showIncidentMapOrig = showIncidentMap;
           // TODO: -13 is a magic number here that got this working.
           // I dont totally understant what its related to.
           // pointRadius + strokeWidth + 2FunPixels?
-          incidentStyle.externalGraphic = icon;
-          incidentStyle.graphicXOffset = -13+
+          iconStyle.externalGraphic = icon;
+          iconStyle.graphicXOffset = -13+
             offsetRadius*Math.cos(((2*3.14)/(numIcons))*index);
-          incidentStyle.graphicYOffset = -13+
+          iconStyle.graphicYOffset = -13+
             offsetRadius*Math.sin(((2*3.14)/(numIcons))*index);
 
           iconPoint = incidentPoint.clone();
           var feature = new OpenLayers.Feature.Vector(
-            iconPoint, null, incidentStyle);
-          vLayer.addFeatures([feature]);
+            iconPoint, null, iconStyle);
+          vLayerIcons.addFeatures([feature]);
         });
       }
       // If icon is a single value (this is the protocol default)
       else if (val.properties.icon) {
-        incidentStyle.externalGraphic = val.properties.icon;
-        incidentStyle.graphicYOffset = offsetRadius;
+        iconStyle.externalGraphic = val.properties.icon;
+        iconStyle.graphicYOffset = offsetRadius;
 
         // create a feature vector from the point and style
         var feature = new OpenLayers.Feature.Vector(incidentPoint, null, reportStyle);
-        vLayer.addFeatures([feature]);
+        vLayerIcons.addFeatures([feature]);
       }
 
-      // TODO
-      // if decayed add a transparent decay icon over top
-      //
-      // add the feature to the layer
+      // TODO: if decayed add a transparent decay icon over top
     });
   });
 
   // Add the vector layer to the map
   map.addLayer(vLayer);
+  map.addLayer(vLayerIcons);
   
   // Add feature selection events
   addFeatureSelectionEvents(map, vLayer);
