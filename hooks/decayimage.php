@@ -108,6 +108,7 @@ class decayimage {
 
 $new_js = <<<ENDJS
   var showIncidentMapOrig = showIncidentMap;
+  //showIncidentMapBak = (function() {
   showIncidentMap = (function() {
   //return showIncidentMapOrig();
 
@@ -196,18 +197,19 @@ $new_js = <<<ENDJS
         // Loop over each icon setting externalGraphic and x,y offsets
         $.each(val.properties.icon, function(index, icon) {
           
+          var newIconStyle =  OpenLayers.Util.extend({}, iconStyle);
           // TODO: -13 is a magic number here that got this working.
           // I dont totally understant what its related to.
           // pointRadius + strokeWidth + 2FunPixels?
-          iconStyle.externalGraphic = icon;
-          iconStyle.graphicXOffset = -13+
+          newIconStyle.externalGraphic = icon;
+          newIconStyle.graphicXOffset = -13+
             offsetRadius*Math.cos(((2*3.14)/(numIcons))*index);
-          iconStyle.graphicYOffset = -13+
+          newIconStyle.graphicYOffset = -13+
             offsetRadius*Math.sin(((2*3.14)/(numIcons))*index);
 
           iconPoint = incidentPoint.clone();
           var feature = new OpenLayers.Feature.Vector(
-            iconPoint, null, iconStyle);
+            iconPoint, null, newIconStyle);
           vLayerIcons.addFeatures([feature]);
         });
       }
@@ -228,7 +230,7 @@ $new_js = <<<ENDJS
   // Add the vector layer to the map
   map.addLayer(vLayer);
   map.addLayer(vLayerIcons);
-  
+
   // Add feature selection events
   addFeatureSelectionEvents(map, vLayer);
 });
