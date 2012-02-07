@@ -161,7 +161,7 @@ $new_js = <<<ENDJS
 
       
   // URL to be used for fetching the incidents
-  fetchURL = "{$site}json/index";
+  fetchURL = "{$site}decayimage/json";
   
   // Generate the url parameter string
   parameterStr = makeUrlParamStr("", urlParameters);
