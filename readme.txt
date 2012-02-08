@@ -11,6 +11,10 @@ author website: http://march-hare.org
 == Description ==
 Adds support for map markers when an incident has ended
 
+There is currently no way to associate a specific decay image with a specific
+incident.  Instead decay images are associated with categories, and the default
+category is the incident marker.
+
 == Installation ==
 
 == Changelog ==
