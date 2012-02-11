@@ -15,9 +15,13 @@
 		"decayimage"=>"Decay Image",
 		"decayimage_settings" => "Decay Image Settings",
     "show_decayimage"=>"Show Decay Image:",
-    "decayimage_has_been"=>"Decay image as been added",
+    "decayimage_has_been"=>"Decay image as been ",
 		"default_incident_icon"=>"Default Incident Icon",
 		"yes"=>"Yes",
-		"no"=>"No",
+    "no"=>"No",
+    "updated"=>"Updated",
+    'decayimage_thumb' => array(
+      'length' => 'The file name for the thumbnail is too long'
+    )
 	);
 ?>

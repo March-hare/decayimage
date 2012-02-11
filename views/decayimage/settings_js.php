@@ -12,38 +12,41 @@
  */
 ?>
 // geometrys JS
-function fillFields(id, category_id, kml_file_old, lat, lon)
+function fillFields(id, category_id, decayimage_image, decayimage_thumb)
 {
-	$("#geometry_id").attr("value", unescape(id));
+	$("#decayimage_id").attr("value", unescape(id));
 	$("#category_id").val(category_id);
-	$("#label_lat").val(lat);
-	$("#label_lon").val(lon);
-	$("#kml_file_old").attr("value", unescape(kml_file_old));
+  $("#decayimage_thumb").val(decayimage_thumb);
+  // This is only called when editing an exising decayimage
+	$("#action").val('e');
+  changeDecayImagePreview(decayimage_thumb);
 }
 
-function geometryAction ( action, confirmAction, id )
+function decayimageAction ( action, confirmAction, id )
 {
 	var statusMessage;
 	var answer = confirm('<?php echo Kohana::lang('ui_admin.are_you_sure_you_want_to'); ?> ' + confirmAction + '?')
 	if (answer){
 		// Set Category ID
-		$("#geometry_id_action").attr("value", id);
+		$("#decayimage_id_action").attr("value", id);
 		// Set Submit Type
 		$("#action").attr("value", action);		
 		// Submit Form
-		$("#geometryListing").submit();
+		$("#decayimageListing").submit();
 	}
+}
+
+function changeDecayImagePreview(src) {
+  $(".decayimage_preview").html(src == "<?php echo $default_decayimage_thumb ?>" ? 
+    "<img src='<?php echo url::site() ."plugins/decayimage/images/". $default_decayimage_thumb ?>'>" :
+    "<img src='<?php echo url::site() ?>media/uploads/" + src + "'>"
+    );
 }
 
 // TODO: this should take 
 $(document).ready(function() {
-    $(".decayimage_preview").change(function() {
-        var src = $(this).val();
-
-        $(".decayimage_preview").html(src ? 
-          // If there is no source we assume it is the default image
-          "<img src='<?php echo $url_site ?>/media/uploads/" + src + "'>" : 
-          "<img src='<?php echo $url_site ."/plugins/decayimage/image/". $default_decayimage_thumb ?>'>);
+    $("#decayimage_thumb").change(function() {
+        changeDecayImagePreview($(this).val());
     });
+    changeDecayImagePreview("<?php echo $default_decayimage_thumb ?>");
 });
-

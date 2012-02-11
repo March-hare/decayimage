@@ -88,7 +88,7 @@
 				
 					<?php print form::open(NULL,array('id' => 'decayimageListing',
 					 	'name' => 'decayimageListing')); ?>
-						<input type="hidden" name="action" id="action" value="">
+						<input type="hidden" name="action" id="action" value="a">
 						<input type="hidden" name="decayimage_id" id="decayimage_id_action" value="">
 						<div class="table-holder">
 							<table class="table">
@@ -107,27 +107,38 @@
 										$decayimage_id = $decayimage->id;
 										$category_id = $decayimage->category_id;
 										$decayimage_image = $decayimage->decayimage_image;
-										$decayimage_icon = $decayimage->decayimage_icon;
+										$decayimage_thumb = $decayimage->decayimage_thumb;
 										?>
 										<tr>
 											<td class="col-1">&nbsp;</td>
 											<td class="col-2">
 												<div class="post">
-													<h4><?php echo isset($cat_array[$category_id]) ? $cat_array[$category_id] : "--CATEGORY MISSING--" ; ?></h4>
+                        <h4><?php 
+                          if ($category_id == 0) {
+                            echo Kohana::lang('decayimage.default_incident_icon');
+                          } else if (!isset($cat_array[$category_id])) {
+                            // TODO: this is an error condition, is it necesary 
+                            // to translate?
+                            echo "--CATEGORY MISSING--" ; 
+                          } else {
+                            // TODO: how do we use the i18n functionality built 
+                            // into the category names section.
+                            echo $cat_array[$category_id];
+                          }
+                        ?></h4>
 												</div>
 											</td>
 											<td class="col-3">
                       <?php 
-                        if ($decayimage_icon == $default_decayimage_thumb) {
-                          echo "<img src='$url_site/plugins/decayimage/images/$default_decayimage_thumb'>";
+                        if ($decayimage_thumb == $default_decayimage_thumb) {
+                          echo "<img src='${url_site}plugins/decayimage/images/$default_decayimage_thumb'>";
                         } else {
-                          echo "<img src='$url_site/media/uploads/$decayimage_icon'>";
+                          echo "<img src='${url_site}media/uploads/$decayimage_thumb'>";
                         }
                       ?>
 											</td>
 											<td class="col-4">
 												<ul>
-                          <!-- TODO: this is where I left off, fillFields is in settings_js.php -->
 													<li class="none-separator">
                           <a href="#add" 
                             onClick="fillFields('<?php 
@@ -135,11 +146,10 @@
                             ?>','<?php 
                               echo(rawurlencode($category_id)); 
                             ?>','<?php 
-                              echo(rawurlencode($kml_file)); 
+                              echo(rawurlencode($decayimage_image)); 
                             ?>', '<?php 
-                              echo(rawurlencode($lat));
-                            ?>', '<?php 
-                              echo(rawurlencode($lon)); ?>')"><?php 
+                              echo(rawurlencode($decayimage_thumb));
+                              ?>')"><?php 
                             echo Kohana::lang('ui_main.edit');?></a>
                           </li>													
 													<li>
