@@ -33,7 +33,8 @@ class Decayimage_Install {
 				  `category_id` int(11) NOT NULL,
 				  `decayimage_image` varchar(255) NOT NULL,
           `decayimage_thumb` varchar(255) NOT NULL,
-				  PRIMARY KEY (`id`)
+          PRIMARY KEY (`id`),
+          UNIQUE KEY `category_id` (`category_id`)
         ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 AUTO_INCREMENT=1");
 
 

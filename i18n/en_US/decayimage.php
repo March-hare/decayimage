@@ -19,9 +19,13 @@
 		"default_incident_icon"=>"Default Incident Icon",
 		"yes"=>"Yes",
     "no"=>"No",
+    "added"=>"Added",
     "updated"=>"Updated",
     'decayimage_thumb' => array(
       'length' => 'The file name for the thumbnail is too long'
+    ),
+    'category_id' => array(
+      'category_id' => 'Invalid category selected'
     )
 	);
 ?>
