@@ -3,7 +3,7 @@ End Time - Ushahidi Plugin
 
 About
 ---------
-* name: End Time
+* name: Decay Image
 * website: https://github.com/jetherton/endtime
 * description: Adds a field for the end time of an event
 * version: 1.0
