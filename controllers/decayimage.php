@@ -17,8 +17,13 @@ class Decayimage_Controller extends Template_Controller {
 	 * Name of the view template for this controller
 	 * @var string
 	 */
-	//public $template = '/application/views/json';
-	public $template = 'json';
+  public $template = 'decayimage/json';
+
+	/**
+	 * Default image for decaying incidents
+	 * @var string
+	 */
+  public $default_decayimage_thumb = 'Question_icon_thumb.png';
 
 	/**
 	 * Database table prefix
@@ -61,7 +66,25 @@ class Decayimage_Controller extends Template_Controller {
 		if (Category_Model::is_valid_category($category_id))
 		{
 			$color = ORM::factory('category', $category_id)->category_color;
-		}
+    }
+
+    // The default path for all uploaded icons
+    $prefix = url::base().Kohana::config('upload.relative_directory');
+
+    // Get the default decayimage icon
+    $decayimage_default_icon = ORM::factory('decayimage', 1);
+    if ($decayimage_default_icon->decayimage_thumb == $this->default_decayimage_thumb) {
+      $decayimage_default_icon = url::site() .'/plugins/decayimage/images/'.
+        $decayimage_default_icon->decayimage_thumb;
+    } else {
+      $decayimage_default_icon = $prefix .'/'. 
+        $decayimage_default_icon->decayimage_thumb;
+    }
+
+    // Find out if the endtime and decayimage plugins are installed
+    $shouldDecayOnEnd = ORM::factory('plugin')
+      ->orwhere(array('plugin_name' => 'decayimage', 'plugin_name' => 'endtime'))
+      ->count_all() == 2;
 		
 		// Fetch the incidents
     $markers = (isset($_GET['page']) AND intval($_GET['page']) > 0)? reports::fetch_incidents(TRUE) : reports::fetch_incidents();
@@ -89,9 +112,25 @@ class Decayimage_Controller extends Template_Controller {
 				}
       }
 
+      // If we should decay on end then we need to find out if the incident has
+      // ended
+      $incidentHasEnded = FALSE;
+      if ($shouldDecayOnEnd) {
+        $incidentHasEnded = (bool) ORM::factory('endtime')
+          // Does the use of php date cause an issue with application timezone 
+          // vs system timezone?
+          ->where(array(
+            'incident_id' => $marker->incident_id,
+            'incident_active' => '1',
+            'endtime_date <' => date("Y-m-d H:i:s"),
+            'remain_on_map' => '2'))
+          ->count_all();
+      }
 
       /* get the icon from the associated categories */
+      Kohana::log('info', 'Decayimage_Controller::json() $marker'. print_r($marker, 1));
       $cats = ORM::factory('incident', $marker->incident_id)->category;
+      Kohana::log('info', 'Decayimage_Controller::json() $cats'. print_r($cats, 1));
       $icon = Array();
       if ($cats->count())
       {
@@ -100,8 +139,18 @@ class Decayimage_Controller extends Template_Controller {
           if ($category->category_image)
           { 
             // TODO: this should be an array.
-            $prefix = url::base().Kohana::config('upload.relative_directory');
-            $icon[] = '"'. $prefix."/". $category->category_image .'"';
+            $iconImage = '"'. $prefix."/". $category->category_image .'"';
+            // If the endtime and decayimage modules are installed we should
+            // use the decayimage associated with the category if it is past
+            // the incidents endtime
+            if ($incidentHasEnded) {
+              $decayImageObject = ORM::factory('decayimage')
+                ->where('category_id', $category->category_id);
+              if ($decayImageObject->loaded()) {
+                $iconImage = $decayImageObject->decayimage_thumb;
+              }
+            }
+            $icon[] = $iconImage;
           }
         }
       }
@@ -133,7 +182,8 @@ class Decayimage_Controller extends Template_Controller {
 			$json_item .= "\"geometry\": {";
 			$json_item .= "\"type\":\"Point\", ";
 			$json_item .= "\"coordinates\":[" . $marker->longitude . ", " . $marker->latitude . "]";
-			$json_item .= "}";
+			$json_item .= "},";
+			$json_item .= "\"incidentHasEnded\": \"". ($incidentHasEnded ? 1 : 0) ."\"";
 			$json_item .= "}";
 
 			if ($marker->incident_id == $incident_id)
@@ -164,6 +214,7 @@ class Decayimage_Controller extends Template_Controller {
 
     header('Content-type: application/json; charset=utf-8');
     $this->template->json = $json;
+    $this->template->decayimage_default_icon = $decayimage_default_icon;
     Kohana::log('info', print_r($this->template, 1));
   }
 
