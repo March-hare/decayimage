@@ -12,15 +12,38 @@
  * @license	   http://www.gnu.org/copyleft/lesser.html GNU Lesser General Public License (LGPL) 
  */
 
-class decayimage {
+class decayimage extends endtime {
 	
 	/**
 	 * Registers the main event add method
 	 */
 	public function __construct()
-	{
-    // TODO: we need to find a way to hook into application/controllers/json.php
-		Event::add('ushahidi_filter.header_js', array($this, 'decayimage_ushahidi_filter_header_js'));
+  {
+    parent::__construct();
+  }
+
+  public function add() {
+
+    switch (url::current()) {
+    case 'admin/reports/edit':
+      // We replace this because we want to add our configureables in the same
+      // section.
+
+      Kohana::log('info', 'endtime::add() '. print_r(new endtime, 1));
+      Event::replace('ushahidi_action.report_form_admin_after_time', 
+        //array($this, '_report_form'),
+        array(new endtime, '_report_form'),
+        //new endtime,
+        //0,
+        array($this, '_report_form')
+      );
+      break;
+
+    case 'reports':
+      Event::add('ushahidi_filter.header_js', 
+        array($this, 'decayimage_ushahidi_filter_header_js'));
+      break;
+    }
 	}
 	
 	/**
@@ -239,11 +262,71 @@ ENDJS;
     Event::$data = $matches[1] . $new_js . $matches[2];
   }//end method
 
+  public function _report_form() {
+    Kohana::log('info', 'decayimage::_report_form()');
+		// Load the View
+		$view = View::factory('decayimage/endtime_form');
+		// Get the ID of the Incident (Report)
+		$id = Event::$data;
+		
+		//initialize the array
+		$form = array
+			(
+			    'end_incident_date'  => '',
+			    'end_incident_hour'      => '',
+			    'end_incident_minute'      => '',
+			    'end_incident_ampm' => ''
+			);
+		
+		
+		if ($id)
+		{
+			// Do We have an Existing Actionable Item for this Report?
+			$endtime_item = ORM::factory('endtime')
+				->where('incident_id', $id)
+				->find();
+
+			$view->applicable = $endtime_item->applicable;
+			$view->remain_on_map = $endtime_item->remain_on_map;
+			$endtime_date = $endtime_item->endtime_date;
+			
+			if($endtime_date == "")
+			{
+				$incident = ORM::factory('incident')->where('id', $id)->find();
+				$i_date_time = $incident->incident_date;
+				$form['end_incident_date'] = date('m/d/Y', strtotime($i_date_time));
+				$form['end_incident_hour'] = date('h', strtotime($i_date_time));
+				$form['end_incident_minute'] = date('i', strtotime($i_date_time));
+				$form['end_incident_ampm'] = date('a', strtotime($i_date_time));
+			}
+			else
+			{
+				$form['end_incident_date'] = date('m/d/Y', strtotime($endtime_date));
+				$form['end_incident_hour'] = date('h', strtotime($endtime_date));
+				$form['end_incident_minute'] = date('i', strtotime($endtime_date));
+				$form['end_incident_ampm'] = date('a', strtotime($endtime_date));
+			}
+		}		
+		else //initialize to now
+		{
+			$view->applicable = 0;
+			$view->remain_on_map= 0;
+			$form['end_incident_date'] = date("m/d/Y",time());
+			$form['end_incident_hour'] = date('h', time());
+			$form['end_incident_minute'] = date('i', time());
+			$form['end_incident_ampm'] = date('a', time());
+		}
+		
+		// Time formatting
+		$view->minute_array = $this->_minute_array();
+		$view->hour_array = $this->_hour_array();
+		$view->ampm_array = $this->_ampm_array();
+		$view->date_picker_js = $this->_date_picker_js();
+
+		$view->form = $form;
+    $view->render(TRUE);
+  }
+
 }//end class
 
-// We only want this called for the reports view
-$url = url::current();
-if ($url != 'reports') {
-  return;
-}
 new decayimage;
