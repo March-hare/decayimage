@@ -46,82 +46,6 @@ class decayimage extends endtime {
     }
 	}
 	
-	/**
-	 * Adds all the events to the main Ushahidi application
-	 */
-	public function decayimage_ushahidi_filter_header_js_single()
-	{
-    Kohana::log('info', 'DEBUG: decay image hook');
-    // Append a new showIncidentMap function to the end of the file
-    preg_match(':^(.+)(//-->\s*</script>\s*)$:s', Event::$data, $matches);
-    $new_js = '
-    var showIncidentMapOrig = showIncidentMap;
-    showIncidentMap = (function() {
-      // URL to be used for fetching the incidents
-      fetchURL = "'. url::site() .'json/index";
-      
-      // Generate the url parameter string
-      parameterStr = makeUrlParamStr("", urlParameters);
-      
-      // Add the parameters to the fetch URL
-      fetchURL += "?" + parameterStr;
-      
-      // Fetch the incidents
-      
-      // Set the layer name
-      var layerName = "'. Kohana::lang('ui_main.reports') .'";
-          
-      // Get all current layers with the same name and remove them from the map
-      currentLayers = map.getLayersByName(layerName);
-      for (var i = 0; i < currentLayers.length; i++)
-      {
-        map.removeLayer(currentLayers[i]);
-      }
-          
-      // Styling for the incidents
-      reportStyle = new OpenLayers.StyleMap({
-        pointRadius: "10",
-        fillColor: "#30E900",
-        fillOpacity: "0.8",
-        strokeColor: "#197700",
-        strokeWidth: 3,
-        graphicZIndex: 1,
-        graphic: true,
-        graphicWidth: 18,
-        // This depends on a modified /application/controllers/json:index() 
-        // to correctly set the icon variable in the json output
-        externalGraphic: "${icon}"
-      });
-
-      // Apply transform to each feature before adding it to the layer
-      preFeatureInsert = function(feature)
-      {
-        var point = new OpenLayers.Geometry.Point(feature.geometry.x, feature.geometry.y);
-        OpenLayers.Projection.transform(point, proj_4326, proj_900913);
-      };
-          
-      // Create vector layer
-      vLayer = new OpenLayers.Layer.Vector(layerName, {
-        projection: map.displayProjection,
-        extractAttributes: true,
-        styleMap: reportStyle,
-        strategies: [new OpenLayers.Strategy.Fixed()],
-        protocol: new OpenLayers.Protocol.HTTP({
-          url: fetchURL,
-          format: new OpenLayers.Format.GeoJSON()
-        })
-      });
-          
-      // Add the vector layer to the map
-      map.addLayer(vLayer);
-      
-      // Add feature selection events
-      addFeatureSelectionEvents(map, vLayer);
-	});
-      ';
-    Event::$data = $matches[1] . $new_js . $matches[2];
-  }
-
 	public function decayimage_ushahidi_filter_header_js()
 	{
     // Append a new showIncidentMap function to the end of the file
@@ -181,7 +105,6 @@ $new_js = <<<ENDJS
     style: iconStyle,
     rendererOptions: {zIndexing: true}
   });
-
       
   // URL to be used for fetching the incidents
   fetchURL = "{$site}decayimage/json";
@@ -206,6 +129,14 @@ $new_js = <<<ENDJS
       var proj = new OpenLayers.Projection("EPSG:4326");
       incidentPoint.transform(proj, map.getProjectionObject());
 
+      // If the incident has ended but it is configured to "decay" we should
+      // set the incident icon to the decayimage default icon
+      console.log(val.incidentHasEnded);
+      var newIcidentStyle =  OpenLayers.Util.extend({}, reportStyle);
+      if (val.incidentHasEnded) {
+        newIncidentStyle.externalGraphic = data.decayimage_default_icon;
+      }
+
       // create a feature vector from the point and style
       var feature = new OpenLayers.Feature.Vector(incidentPoint, null, reportStyle);
       feature.attributes = val.properties;
@@ -221,10 +152,13 @@ $new_js = <<<ENDJS
         $.each(val.properties.icon, function(index, icon) {
           
           var newIconStyle =  OpenLayers.Util.extend({}, iconStyle);
+          // TODO: make sure we are using the decayimage category icons if they
+          // are set.  I think this should be transparently set by the json 
+          // controller anyhow.
+          newIconStyle.externalGraphic = icon;
           // TODO: -13 is a magic number here that got this working.
           // I dont totally understant what its related to.
           // pointRadius + strokeWidth + 2FunPixels?
-          newIconStyle.externalGraphic = icon;
           newIconStyle.graphicXOffset = -13+
             offsetRadius*Math.cos(((2*3.14)/(numIcons))*index);
           newIconStyle.graphicYOffset = -13+

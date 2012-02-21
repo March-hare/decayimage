@@ -82,10 +82,15 @@ class Decayimage_Controller extends Template_Controller {
     }
 
     // Find out if the endtime and decayimage plugins are installed
-    $shouldDecayOnEnd = ORM::factory('plugin')
-      ->orwhere(array('plugin_name' => 'decayimage', 'plugin_name' => 'endtime'))
-      ->count_all() == 2;
-		
+    $db = new Database;
+    $result = $db->query(
+      "SELECT count(*) as count from ".
+      Kohana::config('database.default.table_prefix').
+      "plugin where plugin_name='decayimage' or plugin_name='endtime'");
+    foreach ($result as $row) {
+      $shouldDecayOnEnd = (bool) ($row->count == 2);
+    }
+
 		// Fetch the incidents
     $markers = (isset($_GET['page']) AND intval($_GET['page']) > 0)? reports::fetch_incidents(TRUE) : reports::fetch_incidents();
 		
@@ -116,21 +121,24 @@ class Decayimage_Controller extends Template_Controller {
       // ended
       $incidentHasEnded = FALSE;
       if ($shouldDecayOnEnd) {
-        $incidentHasEnded = (bool) ORM::factory('endtime')
-          // Does the use of php date cause an issue with application timezone 
-          // vs system timezone?
-          ->where(array(
-            'incident_id' => $marker->incident_id,
-            'incident_active' => '1',
-            'endtime_date <' => date("Y-m-d H:i:s"),
-            'remain_on_map' => '2'))
-          ->count_all();
+        // TODO: Is there a better way to do this with the Kohana ORM libs
+        $query = 'SELECT count(*) count '.
+          'FROM '. Kohana::config('database.default.table_prefix'). 'endtime as endtime '.
+          'LEFT JOIN '. Kohana::config('database.default.table_prefix'). 'incident as incident '.
+          'ON (incident.id = endtime.incident_id) '.
+          'WHERE incident.incident_active = 1 '.
+          'AND endtime.endtime_date < "'. date("Y-m-d H:i:s") .'" '.
+          'AND remain_on_map = 2 '.
+          'AND incident.id = '. $marker->incident_id;
+        $result = $db->query($query);
+        foreach ($result as $row) {
+          $incidentHasEnded = $row->count;
+        }
       }
+      Kohana::log('info', '$incidentHasEnded: '. $incidentHasEnded);
 
       /* get the icon from the associated categories */
-      Kohana::log('info', 'Decayimage_Controller::json() $marker'. print_r($marker, 1));
       $cats = ORM::factory('incident', $marker->incident_id)->category;
-      Kohana::log('info', 'Decayimage_Controller::json() $cats'. print_r($cats, 1));
       $icon = Array();
       if ($cats->count())
       {
@@ -215,7 +223,6 @@ class Decayimage_Controller extends Template_Controller {
     header('Content-type: application/json; charset=utf-8');
     $this->template->json = $json;
     $this->template->decayimage_default_icon = $decayimage_default_icon;
-    Kohana::log('info', print_r($this->template, 1));
   }
 
 	/**
