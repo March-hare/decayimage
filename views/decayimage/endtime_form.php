@@ -15,7 +15,7 @@
         print form::radio('remain_on_map', 0, ($remain_on_map == 0)) ."<br />\n";
         print form::label('remain_on_map', Kohana::lang('decayimage.decay_from_map'));
         print form::radio('remain_on_map', 2, ($remain_on_map == 2)) ."<br />\n";
-        print form::label('remain_on_map', Kohana::lang('endtime.remove_from_map'));
+        print form::label('remain_on_map', Kohana::lang('decayimage.remove_from_map'));
         print form::radio('remain_on_map', 1, ($remain_on_map == 1)) ."<br />\n";
       ?>
 			<?php print form::input('end_incident_date', $form['end_incident_date'], ' class="text"'); ?>								

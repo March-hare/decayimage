@@ -121,7 +121,7 @@ class Decayimage_Controller extends Template_Controller {
       // ended
       $incidentHasEnded = FALSE;
       if ($shouldDecayOnEnd) {
-        // TODO: Is there a better way to do this with the Kohana ORM libs
+        // TODO: Is there a better way to do this with the Kohana ORM libs?
         $query = 'SELECT count(*) count '.
           'FROM '. Kohana::config('database.default.table_prefix'). 'endtime as endtime '.
           'LEFT JOIN '. Kohana::config('database.default.table_prefix'). 'incident as incident '.
@@ -135,10 +135,17 @@ class Decayimage_Controller extends Template_Controller {
           $incidentHasEnded = $row->count;
         }
       }
-      Kohana::log('info', '$incidentHasEnded: '. $incidentHasEnded);
 
       /* get the icon from the associated categories */
-      $cats = ORM::factory('incident', $marker->incident_id)->category;
+      // TODO: the Incident_Model is loosing its bindings after the second 
+      // iteration
+      // TODO: this does not take into account table_prefix
+      //$incident = ORM::factory('incident', $marker->incident_id)->with('category');
+      $query = 'SELECT category.* FROM incident '.
+        'LEFT JOIN incident_category ON (incident.id = incident_category.incident_id) '.
+        'LEFT JOIN category ON (incident_category.category_id = category.id) '.
+        'WHERE incident.id = '. $marker->incident_id;
+      $cats = $db->query($query);
       $icon = Array();
       if ($cats->count())
       {
@@ -153,9 +160,17 @@ class Decayimage_Controller extends Template_Controller {
             // the incidents endtime
             if ($incidentHasEnded) {
               $decayImageObject = ORM::factory('decayimage')
-                ->where('category_id', $category->category_id);
-              if ($decayImageObject->loaded()) {
-                $iconImage = $decayImageObject->decayimage_thumb;
+                ->where('category_id', $category->id)
+                ->find();
+              if ($decayImageObject->loaded) {
+                // Account for the default icon
+                // TODO: this should be loaded from a default stored in the 
+                // Model
+                $iconImage = '"'. $prefix."/". $decayImageObject->decayimage_thumb .'"';
+                if ($decayImageObject->decayimage_thumb == "Question_icon_thumb.png") {
+                  $iconImage = '"'. url::site() ."plugins/decayimage/images/". 
+                    $decayImageObject->decayimage_thumb .'"';
+                }
               }
             }
             $icon[] = $iconImage;
@@ -204,7 +219,8 @@ class Decayimage_Controller extends Template_Controller {
 			}
 			
 			// Get Incident Geometries
-			$geometry = $this->_get_geometry($marker->incident_id, $marker->incident_title, $marker->incident_date);
+      $geometry = $this->_get_geometry(
+        $marker->incident_id, $marker->incident_title, $marker->incident_date);
 			if (count($geometry))
 			{
 				$json_item = implode(",", $geometry);

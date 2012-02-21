@@ -23,26 +23,26 @@ class decayimage extends endtime {
   }
 
   public function add() {
-
-    switch (url::current()) {
-    case 'admin/reports/edit':
+    if (preg_match(':^admin/reports/edit:', url::current())) {
       // We replace this because we want to add our configureables in the same
       // section.
-
-      Kohana::log('info', 'endtime::add() '. print_r(new endtime, 1));
       Event::replace('ushahidi_action.report_form_admin_after_time', 
-        //array($this, '_report_form'),
         array(new endtime, '_report_form'),
-        //new endtime,
-        //0,
-        array($this, '_report_form')
-      );
-      break;
+        array($this, '_report_form'));
 
-    case 'reports':
+      // Hook into the report_submit_admin (post_POST) event right before saving
+      Event::replace('ushahidi_action.report_submit_admin', 
+        array(new endtime, '_report_validate'),
+        array($this, '_report_validate'));
+
+      // Hook into the report_edit (post_SAVE) event
+      Event::replace('ushahidi_action.report_edit', 
+        array(new endtime, '_report_form_submit'),
+        array($this, '_report_form_submit'));
+
+    } else if (preg_match(':^reports:', url::current())) {
       Event::add('ushahidi_filter.header_js', 
         array($this, 'decayimage_ushahidi_filter_header_js'));
-      break;
     }
 	}
 	
@@ -131,14 +131,13 @@ $new_js = <<<ENDJS
 
       // If the incident has ended but it is configured to "decay" we should
       // set the incident icon to the decayimage default icon
-      console.log(val.incidentHasEnded);
-      var newIcidentStyle =  OpenLayers.Util.extend({}, reportStyle);
-      if (val.incidentHasEnded) {
+      var newIncidentStyle =  OpenLayers.Util.extend({}, reportStyle);
+      if (val.incidentHasEnded == 1) {
         newIncidentStyle.externalGraphic = data.decayimage_default_icon;
       }
 
       // create a feature vector from the point and style
-      var feature = new OpenLayers.Feature.Vector(incidentPoint, null, reportStyle);
+      var feature = new OpenLayers.Feature.Vector(incidentPoint, null, newIncidentStyle);
       feature.attributes = val.properties;
       vLayer.addFeatures([feature]);
 
@@ -197,7 +196,6 @@ ENDJS;
   }//end method
 
   public function _report_form() {
-    Kohana::log('info', 'decayimage::_report_form()');
 		// Load the View
 		$view = View::factory('decayimage/endtime_form');
 		// Get the ID of the Incident (Report)
@@ -259,6 +257,42 @@ ENDJS;
 
 		$view->form = $form;
     $view->render(TRUE);
+  }
+
+	/**
+	 * Validate Form Submission
+	 */
+	public function _report_validate() {
+    parent::_report_validate();
+		if(is_object($this->post_data))
+		{
+			$this->post_data->add_rules('remain_on_map','digit');
+		}
+	}
+
+	/**
+	 * Handle Form Submission and Save Data
+	 */
+	public function _report_form_submit() {
+    parent::_report_form_submit();
+
+		$incident = Event::$data;
+		$id = $incident->id;
+    if ($this->post_data) {
+      // TODO: remain_on_map should be moved to a table independent of the 
+      // endtime table.
+			$endtime = ORM::factory('endtime')
+				->where('incident_id', $id)
+        ->find();
+
+      $endtime->remain_on_map = isset($this->post_data['remain_on_map']) ? 
+        $this->post_data['remain_on_map'] : "0";
+
+      Kohana::log('info', 'decayimage::_report_form_submit() remain_on_map: '.
+        $endtime->remain_on_map);
+
+			$endtime->save();
+    }
   }
 
 }//end class

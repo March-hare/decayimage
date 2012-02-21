@@ -21,7 +21,7 @@
     'remove_from_map' => 'Remove marker from map after endtime?',
     'decay_from_map' => 'Marker image should decay after endtime?',
     'will_remain_on_map' => 'Marker will remain on map after endtime',
-    'will_remove_from_map' => 'Marker will be removed from map after endtime',
+    'remove_from_map' => 'Marker will be removed from map after endtime',
 		"yes"=>"Yes",
     "no"=>"No",
     "added"=>"Added",
