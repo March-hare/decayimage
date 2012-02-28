@@ -42,6 +42,20 @@ class Decayimage_Controller extends Template_Controller {
 		$this->table_prefix = Kohana::config('database.default.table_prefix');
   }
 
+  public function index(){
+
+    $this->view = View::factory("decayimage/decayimage_js");
+
+    header("Content-Type: text/javascript"); //set proper mime-type;
+
+    $this->view->layerName = Kohana::lang('ui_main.reports');
+    $this->view->site = url::site();
+
+    $this->view->render(TRUE);
+
+  }
+
+
 	/**
    * Generate JSON in NON-CLUSTER mode
    *
