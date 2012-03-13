@@ -13,7 +13,7 @@
 
 
 
-class Decayimage_Controller extends Admin_Controller
+class Decayimage_Settings_Controller extends Admin_Controller
 {
 
 	public function __construct()
