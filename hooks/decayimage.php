@@ -239,14 +239,25 @@ ENDJS;
 				$form['end_incident_ampm'] = date('a', strtotime($endtime_date));
 			}
 		}		
-		else //initialize to now
+		else //initialize to now using submitted values if available
 		{
-			$view->applicable = 0;
-			$view->remain_on_map= 0;
-			$form['end_incident_date'] = date("m/d/Y",time());
-			$form['end_incident_hour'] = date('h', time());
-			$form['end_incident_minute'] = date('i', time());
-			$form['end_incident_ampm'] = date('a', time());
+      $view->applicable = isset($_POST['endtime_applicable'])?
+        htmlspecialchars($_POST['endtime_applicable'], ENT_QUOTES, 'UTF-8') : 0;
+
+      $view->remain_on_map= isset($_POST['remain_on_map'])?
+        htmlspecialchars($_POST['remain_on_map'], ENT_QUOTES, 'UTF-8') : 0;
+
+      $form['end_incident_date'] = isset($_POST['end_incident_date']) ?
+        htmlspecialchars($_POST['end_incident_date']) : date("m/d/Y",time());
+
+      $form['end_incident_hour'] = isset($_POST['end_incident_hour']) ?
+        htmlspecialchars($_POST['end_incident_hour']) : date('h', time());
+
+      $form['end_incident_minute'] = isset($_POST['end_incident_minute']) ?
+        htmlspecialchars($_POST['end_incident_minute']) : date('i', time());
+
+      $form['end_incident_ampm'] = isset($_POST['end_incident_ampm']) ?
+        htmlspecialchars($_POST['end_incident_ampm']) : date('a', time());
 		}
 		
 		// Time formatting
