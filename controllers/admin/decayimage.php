@@ -65,37 +65,65 @@ class Decayimage_Controller extends Admin_Controller
       $post->pre_filter('trim');
 
       $post->add_callbacks('category_id', array($this, '_is_valid_category'));
-
-      // Setup validation for new $_FILES
-      if (upload::valid($_FILES['decayimage_file']) && 
-        strlen($_FILES['decayimage_file']['name'])) {
-        $_FILES = Validation::factory($_FILES)
-          ->add_rules('decayimage_file', 'upload::valid', 
-          'upload::type[gif,jpg,png]', 'upload::size[50K]');
-      } else {
-        $post->add_rules('decayimage_thumb', 'required', 'length[5,255]');
-        $post->add_callbacks('decayimage_thumb', 
-          array($this, '_is_valid_decayimage_thumb'));
+      // if we have an action == 'a' but and a decayimage_id then what we really 
+      // mean is to perform and edit
+      if (($post->action == 'a') && isset($post->category_id)) {
+        $post->add_rules('category_id', 'required', 'numeric');
+        if (
+          $post->validate()  &&
+          ($decayimage = ORM::factory('decayimage')->
+          where('category_id', $post->category_id)->find())  &&
+          $decayimage->loaded
+        ) {
+          $post->decayimage_id = $decayimage->id;
+          $post->action = 'e';
+        }
       }
 
 			// Check for action
       if ($post->action == 'a')
-			{
-        // TODO: it should be possible to add decayimages from existing images
-        // https://github.com/March-hare/decayimage/issues/4
-        if (
-          $post->validate() &&
-          upload::valid($_FILES['decayimage_file']) && 
-          strlen($_FILES['decayimage_file']['name']) &&
-          $_FILES->validate()
-        ) {
-            // Create a new decayimage row
-            $decayimage = new Decayimage_Model($post->decayimage_id);
+      {
+        // Create a new decayimage row
+        $decayimage = new Decayimage_Model($post->decayimage_id);
 
+        // Handle the case where we recieve new files
+        if (
+          upload::valid($_FILES['decayimage_file']) && 
+
+          strlen($_FILES['decayimage_file']['name']) &&
+
+          $_FILES = Validation::factory($_FILES)
+            ->add_rules('decayimage_file', 'upload::valid', 
+            'upload::type[gif,jpg,png]', 'upload::size[50K]') &&
+
+          $_FILES->validate()  &&
+
+          $post->validate() 
+        ) {
+          // Upload the file and create a thumb
+          $modified_files = $this->_handle_new_decayimage_fileupload(0);
+          $decayimage->decayimage_image = $modified_files[0];
+          $decayimage->decayimage_thumb = $modified_files[1];
+
+          // Update the relevant decayimage from the db
+          $decayimage->category_id = $post->category_id;
+          $decayimage->save();
+
+          $form_saved = TRUE;
+          $form_action = Kohana::lang('decayimage.added');
+        } 
+        // Handle the case where we recieve only existing thumbnails
+        else if (
+          $post->add_rules('decayimage_thumb', 'required', 'length[5,255]') &&
+
+          $post->add_callbacks('decayimage_thumb', 
+          array($this, '_is_valid_decayimage_thumb')) &&
+
+          $post->validate() 
+
+        ){
             // Upload the file and create a thumb
-            $modified_files = $this->_handle_new_decayimage_fileupload(0);
-            $decayimage->decayimage_image = $modified_files[0];
-            $decayimage->decayimage_thumb = $modified_files[1];
+            $decayimage->decayimage_thumb = $post->decayimage_thumb;
 
             // Update the relevant decayimage from the db
             $decayimage->category_id = $post->category_id;
@@ -103,13 +131,30 @@ class Decayimage_Controller extends Admin_Controller
 
             $form_saved = TRUE;
             $form_action = Kohana::lang('decayimage.added');
-        } else {
+        } 
+        // If we did not reieve valid upload or valid exisitng thumbs then we error
+        else {
           // There was an error in validation
           $form_error = TRUE;
           $form = arr::overwrite($form, $post->as_array());
           $errors = arr::overwrite($errors, $post->errors('decayimage'));
         }
-      } elseif ($post->action == 'e') {
+      } 
+
+      // Handle form edits
+      elseif ($post->action == 'e') {
+        // Setup validation for new $_FILES
+        if (upload::valid($_FILES['decayimage_file']) && 
+          strlen($_FILES['decayimage_file']['name'])) {
+          $_FILES = Validation::factory($_FILES)
+            ->add_rules('decayimage_file', 'upload::valid', 
+            'upload::type[gif,jpg,png]', 'upload::size[50K]');
+        } else {
+          $post->add_rules('decayimage_thumb', 'required', 'length[5,255]');
+          $post->add_callbacks('decayimage_thumb', 
+            array($this, '_is_valid_decayimage_thumb'));
+        }
+
         // Validate all input
         $post->add_rules('decayimage_id', 'required', 'numeric');
         $post->add_callbacks('decayimage_id', array($this, '_is_valid_decayimage_id'));
@@ -141,16 +186,39 @@ class Decayimage_Controller extends Admin_Controller
         } else {
           // There were errors
           $form_error = TRUE;
-          $form = arr::overwrite($form, $post->as_array());
-          $errors = arr::overwrite($errors, $post->errors('decayimage'));
         }
 
       }
       elseif ($post->action == 'd') {
         // TODO: https://github.com/March-hare/decayimage/issues/3
+        // Make sure its not the Default entry
+        $post->add_rules('decayimage_id', 'required', 'numeric');
+        if ($post->validate()) {
+          $decayimage = ORM::factory('decayimage', $post->decayimage_id);
+          if ($decayimage->decayimage_image != 'Question_icon.png') {
+            $decayimage->delete();
+          }
+          else {
+            $form_error = TRUE;
+            $post->add_error('decayimage', Kohana::lang('decayimage.cant_del_default'));
+          }
+        }
+        else {
+          $form_error = TRUE;
+        }
       }
       elseif ($post->action == 'r') {
         // TODO: Revert to default decayimage action
+        $decayimage = ORM::factory('decayimage')->
+          where('category_id', 0)->find();
+        $decayimage->decayimage_image = 'Question_icon.png';
+        $decayimage->decayimage_thumb = 'Question_icon_thumb.png';
+        $decayimage->save();
+      }
+
+      if ($form_error) {
+        $form = arr::overwrite($form, $post->as_array());
+        $errors = arr::overwrite($errors, $post->errors('decayimage'));
       }
 		}
 
@@ -184,8 +252,8 @@ class Decayimage_Controller extends Admin_Controller
   }//end index function
 
   public function _is_valid_decayimage_thumb(Validation $array, $field) {
-    $decayimage_exists = (bool) ORM::factory('decayimage')
-      // The Kohana documentation says that all input is auto sanitized
+    // The Kohana documentation says that all input is auto sanitized
+    $decayimage_exists = ORM::factory('decayimage')
       ->where('decayimage_thumb', $array[$field])
       ->count_all();
 
