@@ -30,7 +30,7 @@ function decayimageAction ( action, confirmAction, id )
 		// Set Category ID
 		$("#decayimage_id_action").attr("value", id);
 		// Set Submit Type
-		$("#action").attr("value", action);		
+		$("#decayimageListing #action").attr("value", action);		
 		// Submit Form
 		$("#decayimageListing").submit();
 	}

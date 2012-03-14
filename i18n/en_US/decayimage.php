@@ -22,21 +22,27 @@
     'decay_from_map' => 'Marker image should decay after endtime?',
     'will_remain_on_map' => 'Marker will remain on map after endtime',
     'remove_from_map' => 'Marker will be removed from map after endtime',
+    'cant_del_default' => 'The default decayimage can not be deleted',
+    'restore' => 'Restore',
 		"yes"=>"Yes",
     "no"=>"No",
     "added"=>"Added",
     "updated"=>"Updated",
     'decayimage_thumb' => array(
-      'length' => 'The file name for the thumbnail is too long'
+      'length' => 'The file name for the thumbnail has to be between 5 and 255 characters',
+      'invalid_decayimage_thumb' => 'There was an internal problem encountered when procesing your request.  Please try again.'
+    ),
+    'decayimage_id' => array(
+      'invalid_decayimage_id' => 'An invalid decay image id was passed in',
+      'required' => 'There was an internal problem encountered when procesing your request.  Please try again.'
     ),
     'category_id' => array(
-      'category_id' => 'Invalid category selected'
+      'required' => 'There was an internal problem encountered when procesing your request.  Please try again.'
     ),
     'category' => array(
       'did_not_find_category_image_for_grayscale' => 'There was an internal system error.  Please try again.',
       'did_not_find_category_for_grayscale' => 'There was an internal system error.  Please try again.',
       'invalid_image_type' => 'The decayimage module did not create a decayimage for this categpry icon because it was not of type PNG.'
     )
-
 	);
 ?>

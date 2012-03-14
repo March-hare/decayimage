@@ -152,10 +152,22 @@
                               ?>')"><?php 
                             echo Kohana::lang('ui_main.edit');?></a>
                           </li>													
-													<li>
+                          <li><?php 
+                              if (
+                                ($category_id == 0) && 
+                                ($decayimage_thumb != $default_decayimage_thumb)
+                              ): 
+                          ?>
+                          <a href="javascript:decayimageAction('r', 'RESTORE', '<?php
+                            echo(rawurlencode($decayimage_id)); ?>')" class="restore"><?php 
+                            echo Kohana::lang('decayimage.restore');?></a>
+                          </li>
+                          <?php elseif ($category_id != 0): ?>
+
                           <a href="javascript:decayimageAction('d','DELETE','<?php 
                             echo(rawurlencode($decayimage_id)); ?>')" class="del"><?php 
                             echo Kohana::lang('ui_main.delete');?></a>
+                          <?php endif; ?>
                           </li>
 												</ul>
 											</td>
