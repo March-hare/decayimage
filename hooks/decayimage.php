@@ -43,6 +43,9 @@ class decayimage extends endtime {
     } else if (preg_match(':^reports:', url::current())) {
       Event::add('ushahidi_filter.header_js', 
         array($this, 'decayimage_ushahidi_filter_header_js'));
+    } else if (preg_match(':admin/manage:', url::current())) {
+      Event::add('ushahidi_action.category_save', 
+        array($this, 'decayimage_ushahidi_filter_category_save'));
     }
 	}
 	
@@ -194,6 +197,67 @@ ENDJS;
 
     Event::$data = $matches[1] . $new_js . $matches[2];
   }//end method
+
+  // We want to add default decayimage module here
+  //public function decayimage_ushahidi_filter_category_save($data) {
+  public function decayimage_ushahidi_filter_category_save() {
+    $data = Event::$data;
+
+    // Get the last id that was added to the category table
+    $db = new Database();
+    $result = $db->query('SELECT MAX(id) id FROM category');
+    foreach ($result as $row) {}
+
+    // Get the category_id and the image file
+    $category = ORM::factory('category')->where('id', $row->id)->find();
+
+    // TODO: the errors below are not used by the calling controller
+    $image = Kohana::config('upload.directory', TRUE).$category->category_image;
+    if (!file_exists($image)) {
+      $data->add_error('category', 'did_not_find_category_image_for_grayscale');
+      return false;
+    }
+
+    // TODO: the errors below are not used by the calling controller
+    $type = $data['category_image']['type'];
+    if (!preg_match('/png/i', $type)) {
+      $data->add_error('category', 'invalid_image_type');
+      return false;
+    }
+
+    $gdimg = imagecreatefrompng($image);
+    imagealphablending($gdimg, false);
+    imagesavealpha($gdimg, true);
+    $new_filename = "decayimage_".$category->id."_".time();
+    $new_filename_with_path = Kohana::config('upload.directory', TRUE) . $new_filename .'.png';
+    if (
+      $gdimg && 
+      imagefilter($gdimg, IMG_FILTER_GRAYSCALE) &&
+      imagepng($gdimg, $new_filename_with_path) &&
+      imagedestroy($gdimg)
+    ) {
+      $cat_img_file = $new_filename.".png";
+      $cat_img_thumb_file = $new_filename."_16x16.png";
+
+      // Also create a thumbnail of the decayimage
+      Image::factory($new_filename_with_path)->resize(16,16,Image::HEIGHT)
+        ->save(Kohana::config('upload.directory', TRUE) . $cat_img_thumb_file);
+
+      // Create the decayimage row
+      $decayimage = new Decayimage_Model();
+      $decayimage->category_id = $category->id;
+      $decayimage->decayimage_image = $cat_img_file;
+      $decayimage->decayimage_thumb = $cat_img_thumb_file;
+      $decayimage->save();
+
+      Kohana::log('debug', 'sector::decayimage_ushahidi_filter_category_save '. 
+        'created a decayimage for the added category icon.');
+    } else {
+      Kohana::log('error', 'sector::decayimage_ushahidi_filter_category_save '. 
+        'failed to create a decayimage for the added category icon.');
+    }
+
+  }
 
   public function _report_form() {
 		// Load the View

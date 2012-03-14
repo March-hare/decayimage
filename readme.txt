@@ -13,7 +13,9 @@ Adds support for map markers when an incident has ended
 
 There is currently no way to associate a specific decay image with a specific
 incident.  Instead decay images are associated with categories, and the default
-category is the incident marker.
+category is the incident marker.  By default this module will try and create a
+default category decay image, but this is not possible unless the category icon
+is of type PNG.
 
 == Installation ==
 
