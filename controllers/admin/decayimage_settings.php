@@ -92,25 +92,32 @@ class Decayimage_Settings_Controller extends Admin_Controller
 
           strlen($_FILES['decayimage_file']['name']) &&
 
-          $_FILES = Validation::factory($_FILES)
+          ($_FILES = Validation::factory($_FILES)
             ->add_rules('decayimage_file', 'upload::valid', 
-            'upload::type[gif,jpg,png]', 'upload::size[50K]') &&
+            'upload::type[gif,jpg,png]', 'upload::size[50K]')) &&
 
           $_FILES->validate()  &&
 
           $post->validate() 
         ) {
+
           // Upload the file and create a thumb
           $modified_files = $this->_handle_new_decayimage_fileupload(0);
-          $decayimage->decayimage_image = $modified_files[0];
-          $decayimage->decayimage_thumb = $modified_files[1];
+          if (!$modified_files) {
+            $form_saved = false;
+            $form_error = TRUE;
+            $post->add_error('decayimage', Kohana::lang('decayimage.cant_upload_file'));
+          } else {
+            $decayimage->decayimage_image = $modified_files[0];
+            $decayimage->decayimage_thumb = $modified_files[1];
 
-          // Update the relevant decayimage from the db
-          $decayimage->category_id = $post->category_id;
-          $decayimage->save();
+            // Update the relevant decayimage from the db
+            $decayimage->category_id = $post->category_id;
+            $decayimage->save();
 
-          $form_saved = TRUE;
-          $form_action = Kohana::lang('decayimage.added');
+            $form_saved = TRUE;
+            $form_action = Kohana::lang('decayimage.added');
+          }
         } 
         // Handle the case where we recieve only existing thumbnails
         else if (
@@ -170,8 +177,14 @@ class Decayimage_Settings_Controller extends Admin_Controller
 
             $modified_files = 
               $this->_handle_new_decayimage_fileupload($post->decayimage_id);
-            $decayimage->decayimage_image = $modified_files[0];
-            $decayimage->decayimage_thumb = $modified_files[1];
+            if (!$modified_files) {
+              $form_saved = false;
+              $form_error = TRUE;
+              $post->add_error('decayimage', Kohana::lang('decayimage.cant_upload_file'));
+            } else {
+              $decayimage->decayimage_image = $modified_files[0];
+              $decayimage->decayimage_thumb = $modified_files[1];
+            }
           } else {
             $decayimage->decayimage_thumb = $post->decayimage_thumb;
           }
@@ -298,6 +311,9 @@ class Decayimage_Settings_Controller extends Admin_Controller
       // Create a 16x16 version too
       Image::factory($filename)->resize(16,16,Image::HEIGHT)
         ->save(Kohana::config('upload.directory', TRUE) . $cat_img_thumb_file);
+    } else {
+      Kohana::log('error', 'we were not able to save the file upload');
+      return false;
     }
 
     // Okay, now we have these three different files on the server, now check to see

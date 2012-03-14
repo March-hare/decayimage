@@ -43,6 +43,7 @@
       'did_not_find_category_image_for_grayscale' => 'There was an internal system error.  Please try again.',
       'did_not_find_category_for_grayscale' => 'There was an internal system error.  Please try again.',
       'invalid_image_type' => 'The decayimage module did not create a decayimage for this categpry icon because it was not of type PNG.'
-    )
+    ),
+    'cant_upload_file' => 'There was a system error that prevented your file from being uploaded.  Please try again later.'
 	);
 ?>
