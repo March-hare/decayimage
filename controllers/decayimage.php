@@ -51,9 +51,7 @@ class Decayimage_Controller extends Template_Controller {
 	 */
 	public function json()
   {
-		$json = "";
-		$json_item = "";
-		$json_array = array();
+		$features = array();
 		$color = Kohana::config('settings.default_map_all');
 
 		$media_type = (isset($_GET['m']) AND intval($_GET['m']) > 0)? intval($_GET['m']) : 0;
@@ -95,7 +93,6 @@ class Decayimage_Controller extends Template_Controller {
     $markers = (isset($_GET['page']) AND intval($_GET['page']) > 0)? reports::fetch_incidents(TRUE) : reports::fetch_incidents();
 		
 		// Variable to store individual item for report detail page
-		$json_item_first = "";	
 		foreach ($markers as $marker)
 		{
 			$thumb = "";
@@ -154,7 +151,7 @@ class Decayimage_Controller extends Template_Controller {
           if ($category->category_image)
           { 
             // TODO: this should be an array.
-            $iconImage = '"'. $prefix."/". $category->category_image .'"';
+            $iconImage = $prefix."/". $category->category_image;
             // If the endtime and decayimage modules are installed we should
             // use the decayimage associated with the category if it is past
             // the incidents endtime
@@ -166,10 +163,10 @@ class Decayimage_Controller extends Template_Controller {
                 // Account for the default icon
                 // TODO: this should be loaded from a default stored in the 
                 // Model
-                $iconImage = '"'. $prefix."/". $decayImageObject->decayimage_thumb .'"';
+                $iconImage = $prefix."/". $decayImageObject->decayimage_thumb;
                 if ($decayImageObject->decayimage_thumb == "Question_icon_thumb.png") {
-                  $iconImage = '"'. url::site() ."plugins/decayimage/images/". 
-                    $decayImageObject->decayimage_thumb .'"';
+                  $iconImage = url::site() ."plugins/decayimage/images/". 
+                    $decayImageObject->decayimage_thumb;
                 }
               }
             }
@@ -177,70 +174,63 @@ class Decayimage_Controller extends Template_Controller {
           }
         }
       }
-			
-			$json_item = "{";
-			$json_item .= "\"type\":\"Feature\",";
-			$json_item .= "\"properties\": {";
-			$json_item .= "\"id\": \"".$marker->incident_id."\", \n";
 
-			$encoded_title = utf8tohtml::convert($marker->incident_title, TRUE);
-			$encoded_title = str_ireplace('"','&#34;',$encoded_title);
-			$encoded_title = json_encode($encoded_title);
-			$encoded_title = str_ireplace('"', '', $encoded_title);
 
-			$json_item .= "\"name\":\"" . str_replace(chr(10), ' ', str_replace(chr(13), ' ', "<a "
-					. "href='".url::base()."reports/view/".$marker->incident_id."'>".$encoded_title)."</a>") . "\","
-					. "\"link\": \"".url::base()."reports/view/".$marker->incident_id."\", ";
+      $features[] = $this->_build_json_object(
+        $marker, $category, $color, 
+        $icon, $thumb, $incidentHasEnded);
+    }
 
-			$json_item .= (isset($category))
-				? "\"category\":[" . $category_id . "], "
-				: "\"category\":[0], ";
-
-			$json_item .= "\"color\": \"".$color."\", \n";
-			//$json_item .= "\"icon\": \"".$icon."\", \n";
-			$json_item .= "\"icon\": [". implode(',', $icon) ."], \n";
-			$json_item .= "\"thumb\": \"".$thumb."\", \n";
-			$json_item .= "\"timestamp\": \"" . strtotime($marker->incident_date) . "\"";
-			$json_item .= "},";
-			$json_item .= "\"geometry\": {";
-			$json_item .= "\"type\":\"Point\", ";
-			$json_item .= "\"coordinates\":[" . $marker->longitude . ", " . $marker->latitude . "]";
-			$json_item .= "},";
-			$json_item .= "\"incidentHasEnded\": \"". ($incidentHasEnded ? 1 : 0) ."\"";
-			$json_item .= "}";
-
-			if ($marker->incident_id == $incident_id)
-			{
-				$json_item_first = $json_item;
-			}
-			else
-			{
-				array_push($json_array, $json_item);
-			}
-			
-			// Get Incident Geometries
-      $geometry = $this->_get_geometry(
-        $marker->incident_id, $marker->incident_title, $marker->incident_date);
-			if (count($geometry))
-			{
-				$json_item = implode(",", $geometry);
-				array_push($json_array, $json_item);
-      }
-		}
-		
-		if ($json_item_first)
-		{
-			// Push individual marker in last so that it is layered on top when pulled into map
-			array_push($json_array, $json_item_first);
-		}
-		
-		$json = implode(",", $json_array);
+    $json['type'] = "FeatureCollection";
+    $json['features'] = $features;
+    $json['decayimage_default_icon'] = $decayimage_default_icon;  
+    $json = json_encode($json);	
 
     header('Content-type: application/json; charset=utf-8');
-    $this->template->json = $json;
-    $this->template->decayimage_default_icon = $decayimage_default_icon;
+
+    // This adds support for jsonp
+    $this->template->json = isset($_GET['callback'])
+      ?  "{$_GET['callback']}($json)"
+      : $json;
   }
 
+  private function _build_json_object(
+        $marker, $category, $color, 
+        $icon, $thumb, $incidentHasEnded) {
+
+    // This bit below is rediculous!
+    $encoded_title = utf8tohtml::convert($marker->incident_title, TRUE);
+    $encoded_title = str_ireplace('"','&#34;',$encoded_title);
+    $encoded_title = json_encode($encoded_title);
+    $encoded_title = str_ireplace('"', '', $encoded_title);
+    $encoded_title = "<a href='". url::base().  "reports/view/".
+      $marker->incident_id.  "'>".  $encoded_title;
+    $encoded_title = str_replace(chr(13), ' ', $encoded_title);
+    $encoded_title.= "</a>";
+    $encoded_title = str_replace(chr(10), ' ', $encoded_title);
+
+    $object['type'] = 'Feature';
+    $object['properties'] = array(
+      'id' => $marker->incident_id,
+      'name' => '',
+      'link' => url::base()."reports/view/".$marker->incident_id,
+      'category' => array(
+        (isset($category)?$category:0)
+      ),
+      'color' => $color,
+      'icon' => $icon,
+      'thumb' => $thumb,
+      'timestamp' => strtotime($marker->incident_date)
+    );
+    $object['geometry'] = array(
+      'type' => 'Point',
+      'coordinates' => array( $marker->longitude, $marker->latitude )
+    );
+    $object['incidentHasEnded'] = ($incidentHasEnded ? 1 : 0) ;
+
+    return $object;
+  }
+		
 	/**
 	 * Get Geometry JSON
 	 * @param int $incident_id
