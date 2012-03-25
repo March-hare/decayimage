@@ -189,6 +189,7 @@ class Decayimage_Controller extends Template_Controller {
     header('Content-type: application/json; charset=utf-8');
 
     // This adds support for jsonp
+    // TODO: XSS!  The _GET below needs to get sanitized!
     $this->template->json = isset($_GET['callback'])
       ?  "{$_GET['callback']}($json)"
       : $json;
@@ -220,7 +221,9 @@ class Decayimage_Controller extends Template_Controller {
       'color' => $color,
       'icon' => $icon,
       'thumb' => $thumb,
-      'timestamp' => strtotime($marker->incident_date)
+      'timestamp' => strtotime($marker->incident_date),
+      'title' => $marker->incident_title,
+      'body' => $marker->incident_description
     );
     $object['geometry'] = array(
       'type' => 'Point',
