@@ -177,7 +177,7 @@ class Decayimage_Controller extends Template_Controller {
 
 
       $features[] = $this->_build_json_object(
-        $marker, $category, $color, 
+        $marker, $cats->as_array(), $color, 
         $icon, $thumb, $incidentHasEnded);
     }
 
