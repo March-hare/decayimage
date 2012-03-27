@@ -215,9 +215,7 @@ class Decayimage_Controller extends Template_Controller {
       'id' => $marker->incident_id,
       'name' => '',
       'link' => url::base()."reports/view/".$marker->incident_id,
-      'category' => array(
-        (isset($category)?$category:0)
-      ),
+      'category' => (isset($category)?$category:array()),
       'color' => $color,
       'icon' => $icon,
       'thumb' => $thumb,
