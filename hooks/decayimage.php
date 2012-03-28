@@ -67,11 +67,15 @@ $new_js = <<<ENDJS
       
   // Get all current layers with the same name and remove them from the map
   currentLayers = map.getLayersByName(layerName);
-  // TODO: I am not really sure if this is needed
-  currentLayersIcons = map.getLayersByName(layerName + 'Category Icons');
   for (var i = 0; i < currentLayers.length; i++)
   {
     map.removeLayer(currentLayers[i]);
+  }
+
+  // TODO: I am not really sure if this is needed
+  currentLayersIcons = map.getLayersByName(layerName + ' Category Icons');
+  for (var i = 0; i < currentLayersIcond.length; i++)
+  {
     map.removeLayer(currentLayersIcons[i]);
   }
 
