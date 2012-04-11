@@ -247,6 +247,10 @@ ENDJS;
       Image::factory($new_filename_with_path)->resize(16,16,Image::HEIGHT)
         ->save(Kohana::config('upload.directory', TRUE) . $cat_img_thumb_file);
 
+      // Delete pre-existing ids of same name
+       $cat_id=$category->id;
+       ORM::factory('decayimage')->where(array('category_id' => $cat_id))->delete_all();
+     
       // Create the decayimage row
       $decayimage = new Decayimage_Model();
       $decayimage->category_id = $category->id;
