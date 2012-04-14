@@ -191,6 +191,21 @@ class Decayimagecategories_Api_Object extends Api_Object_Core {
                 "error" => $this->api_service->get_error_msg(0)
         );
 
+        $this->query = "SELECT decayimage_thumb from decayimage where category_id=0";
+        $items = $this->db->query($this->query);
+        foreach ($items as $item)
+        {
+          if ($item->decayimage_thumb == 'Question_icon_thumb.png') {
+            $data['payload']['decayimage_default_icon'] = 
+              $item->decayimage_thumb ? url::site() ."plugins/decayimage/images/". 
+              $item->decayimage_thumb : '';
+          }
+          else {
+            $data['payload']['decayimage_default_icon'] = 
+              $item->decayimage_thumb ? $url_prefix . $item->decayimage_thumb : '';
+          }
+        }
+        
         if ($this->response_type == 'json')
         {
             $ret_json_or_xml = $this->array_as_json($data);
