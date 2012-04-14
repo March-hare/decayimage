@@ -49,6 +49,19 @@ class Decayimage_Install {
         `decayimage_thumb`)
         VALUES (0, 'Question_icon.png', 'Question_icon_thumb.png')");
     }
+
+    // We will also modify the incident table to add a last_updated column
+    // But forst we need to check if this was already done.
+    $has_last_updated = false;
+    foreach($this->db->field_data(Kohana::config('database.default.table_prefix')."incident") as $field) {
+      if ($field->Field == 'last_updated') {
+        $has_last_updated = true;
+        break;
+      }
+    }
+    if (!$has_last_updated) {
+      $this->db->query('ALTER TABLE '. Kohana::config('database.default.table_prefix') .'`incident` ADD `last_updated` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    }
 	}
 
 	/**
@@ -58,6 +71,9 @@ class Decayimage_Install {
   {
 
 		$this->db->query('DROP TABLE `'.Kohana::config('database.default.table_prefix').'decayimage`');
+
+    // If this actually did anything we would remove the last_updated column
+
   }
 
 }
