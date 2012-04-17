@@ -74,7 +74,7 @@ $new_js = <<<ENDJS
 
   // TODO: I am not really sure if this is needed
   currentLayersIcons = map.getLayersByName(layerName + ' Category Icons');
-  for (var i = 0; i < currentLayersIcond.length; i++)
+  for (var i = 0; i < currentLayersIcons.length; i++)
   {
     map.removeLayer(currentLayersIcons[i]);
   }
