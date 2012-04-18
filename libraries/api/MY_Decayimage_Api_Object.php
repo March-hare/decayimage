@@ -736,7 +736,6 @@ class Decayimage_Api_Object extends Api_Object_Core {
 			),
 			"error" => $this->api_service->get_error_msg(0)
     );
-    Kohana::log('info', '_get_incidents $data: '. print_r($data, 1));
 
 		if ($this->response_type == 'json')
 		{
