@@ -19,6 +19,12 @@
 
 class Decayimage_Api_Object extends Api_Object_Core {
 	/**
+	 * Default image for decaying incidents
+	 * @var string
+	 */
+  public $default_decayimage_thumb = 'Question_icon_thumb.png';
+
+	/**
 	 * Record sorting order ASC or DESC
 	 * @var string
 	 */
@@ -392,9 +398,11 @@ class Decayimage_Api_Object extends Api_Object_Core {
 		// Fetch the incident categories
 		//
 		$this->query = "SELECT c.category_title AS categorytitle, ic.incident_id, "
-					. "c.id AS cid "
+          . "c.id AS cid, c.category_image_thumb AS categorythumb, "
+          . "d.decayimage_thumb  AS decayimagethumb "
 					. "FROM ".$this->table_prefix."category AS c "
-					. "INNER JOIN ". $this->table_prefix."incident_category AS ic ON ic.category_id = c.id "
+          . "INNER JOIN ". $this->table_prefix."incident_category AS ic ON ic.category_id = c.id "
+          . "LEFT JOIN ". $this->table_prefix."decayimage as d ON c.id = d.category_id "
 					. "WHERE ic.incident_id IN (".implode(',', $incident_ids).")";
 
 		// Execute the query
@@ -411,6 +419,8 @@ class Decayimage_Api_Object extends Api_Object_Core {
 		{
 			$category_items[$incident_category->incident_id][$i]['cid'] = $incident_category->cid;
 			$category_items[$incident_category->incident_id][$i]['categorytitle'] = $incident_category->categorytitle;
+			$category_items[$incident_category->incident_id][$i]['categorythumb'] = $incident_category->categorythumb;
+			$category_items[$incident_category->incident_id][$i]['decayimagethumb'] = $incident_category->decayimagethumb;
 			$i++;
 		}
 
@@ -517,12 +527,33 @@ class Decayimage_Api_Object extends Api_Object_Core {
 				{
 					if ($this->response_type == 'json')
 					{
-						$json_report_categories[$item->incident_id][] = array(
-							"category"=> array(
-								"id" => $category_item['cid'],
-								"title" => $category_item['categorytitle']
-							)
-						);
+            $category  = array(
+              "id" => $category_item['cid'],
+              "title" => $category_item['categorytitle']
+            );
+
+            $category["icon"] = url::base(). 
+              Kohana::config('upload.relative_directory').'/'.
+              $category_item['categorythumb'];
+
+            if ($category_item['decayimagethumb']) {
+              if (
+                $category_item['decayimagethumb'] == 
+                $this->default_decayimage_thumb
+              ) {
+                $category['decayimage'] = 
+                  url::site() .'/plugins/decayimage/images/'. 
+                  $category_item['decayimagethumb'];
+              }
+              else {
+                $category['decayimage'] =
+                  url::base(). Kohana::config('upload.relative_directory').'/'.  
+                  $category_item['decayimagethumb'];
+              }
+            }
+
+            $json_report_categories[$item->incident_id][] = 
+							array("category"=> $category);
 					}
 					else
 					{
@@ -676,23 +707,35 @@ class Decayimage_Api_Object extends Api_Object_Core {
 						"locationid" => $item->location_id,
 						"locationname" => $item->location_name,
 						"locationlatitude" => $item->latitude,
-						"locationlongitude" => $item->longitude
+            "locationlongitude" => $item->longitude,
+            "incidenthasended" => $this->incidentHasEnded($item->incident_id)
 					),
 					"categories" => $json_report_categories[$item->incident_id],
 					"media" => $json_report_media[$item->incident_id],
 					"comments" => $json_report_comments[$item->incident_id]
 				);
-			}
-		}
+      }
+    }
+
+    // Get the default decayimage icon
+    $decayimage_default_icon = ORM::factory('decayimage', 1);
+    if ($decayimage_default_icon->decayimage_thumb == $this->default_decayimage_thumb) {
+      $decayimage_default_icon = url::site() .'/plugins/decayimage/images/'.
+        $decayimage_default_icon->decayimage_thumb;
+    } else {
+      $decayimage_default_icon = $prefix .'/'. 
+        $decayimage_default_icon->decayimage_thumb;
+    }
 
 		// Create the JSON array
 		$data = array(
 			"payload" => array(
 				"domain" => $this->domain,
-				"incidents" => $json_reports
+        "incidents" => $json_reports,
+        "decayimage_default_icon" => $decayimage_default_icon
 			),
 			"error" => $this->api_service->get_error_msg(0)
-		);
+    );
 
 		if ($this->response_type == 'json')
 		{
@@ -709,9 +752,8 @@ class Decayimage_Api_Object extends Api_Object_Core {
 			$xml->endElement();//end error
 			$xml->endElement(); // end response
 			return $xml->outputMemory(true);
-        }
-
     }
+  }
 
 	/**
 	 * Returns the number of reports in each category
@@ -911,4 +953,20 @@ class Decayimage_Api_Object extends Api_Object_Core {
 			? $this->array_as_json($data)
 			: $this->array_as_xml($data, $replar);
 	}
+
+  private function incidentHasEnded($id) {
+    $query = 'SELECT count(*) count '.
+      'FROM '. Kohana::config('database.default.table_prefix'). 'endtime as endtime '.
+      'LEFT JOIN '. Kohana::config('database.default.table_prefix'). 'incident as incident '.
+      'ON (incident.id = endtime.incident_id) '.
+      'WHERE incident.incident_active = 1 '.
+      'AND endtime.endtime_date < "'. date("Y-m-d H:i:s") .'" '.
+      'AND remain_on_map = 2 '.
+      'AND incident.id = '. $id;
+    $result = $this->db->query($query);
+    foreach ($result as $row) {
+      return $row->count;
+    }
+  }
+
 }
