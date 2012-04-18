@@ -90,7 +90,7 @@ class Decayimage_Controller extends Template_Controller {
     }
 
 		// Fetch the incidents
-    $markers = (isset($_GET['page']) AND intval($_GET['page']) > 0)? reports::fetch_incidents(TRUE) : reports::fetch_incidents();
+    $markers = (isset($_GET['page']) AND intval($_GET['page']) > 0)? reports::fetch_incidents(FALSE) : reports::fetch_incidents();
 		
 		// Variable to store individual item for report detail page
 		foreach ($markers as $marker)
