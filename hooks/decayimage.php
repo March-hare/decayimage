@@ -146,7 +146,10 @@ $new_js = <<<ENDJS
 
       // create a feature vector from the point and style
       var feature = new OpenLayers.Feature.Vector(incidentPoint, null, newIncidentStyle);
-      //feature.attributes = val.incident;
+      feature.attributes = {
+        link: "{$site}reports/view/"+val.incident.incidentid,
+        id: val.incident.incidentid
+      };
       vLayer.addFeatures([feature]);
 
       var offsetRadius = reportStyle.pointRadius+iconStyle.graphicHeight/2;
