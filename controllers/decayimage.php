@@ -11,13 +11,7 @@
  * @license	   http://www.gnu.org/copyleft/lesser.html GNU Lesser General Public License (LGPL) 
 */
 
-class Decayimage_Controller extends Template_Controller {
-
-	/**
-	 * Name of the view template for this controller
-	 * @var string
-	 */
-  public $template = 'decayimage/json';
+class Decayimage_Controller extends Main_Controller {
 
 	/**
 	 * Default image for decaying incidents
@@ -43,277 +37,164 @@ class Decayimage_Controller extends Template_Controller {
   }
 
 	/**
-   * Generate JSON in NON-CLUSTER mode
-   *
-   * This is an extension of the controllers/json.php:index() method overridden 
-   * to add relevant functionality to 
-   *
+	 * Displays all reports.
 	 */
-	public function json()
-  {
-		$features = array();
-		$color = Kohana::config('settings.default_map_all');
-
-		$media_type = (isset($_GET['m']) AND intval($_GET['m']) > 0)? intval($_GET['m']) : 0;
-		
-		// Get the incident and category id
-		$category_id = (isset($_GET['c']) AND intval($_GET['c']) > 0)? intval($_GET['c']) : 0;
-		$incident_id = (isset($_GET['i']) AND intval($_GET['i']) > 0)? intval($_GET['i']) : 0;
-		
-		// Get the category colour
-		if (Category_Model::is_valid_category($category_id))
-		{
-			$color = ORM::factory('category', $category_id)->category_color;
-    }
-
-    // The default path for all uploaded icons
-    $prefix = url::base().Kohana::config('upload.relative_directory');
-
-    // Get the default decayimage icon
-    $decayimage_default_icon = ORM::factory('decayimage', 1);
-    if ($decayimage_default_icon->decayimage_thumb == $this->default_decayimage_thumb) {
-      $decayimage_default_icon = url::site() .'/plugins/decayimage/images/'.
-        $decayimage_default_icon->decayimage_thumb;
-    } else {
-      $decayimage_default_icon = $prefix .'/'. 
-        $decayimage_default_icon->decayimage_thumb;
-    }
-
-    // Find out if the endtime and decayimage plugins are installed
-    $db = new Database;
-    $result = $db->query(
-      "SELECT count(*) as count from ".
-      Kohana::config('database.default.table_prefix').
-      "plugin where plugin_name='decayimage' or plugin_name='endtime'");
-    foreach ($result as $row) {
-      $shouldDecayOnEnd = (bool) ($row->count == 2);
-    }
-
-		// Fetch the incidents
-    $markers = (isset($_GET['page']) AND intval($_GET['page']) > 0)? reports::fetch_incidents(FALSE) : reports::fetch_incidents();
-		
-		// Variable to store individual item for report detail page
-		foreach ($markers as $marker)
-		{
-			$thumb = "";
-			if ($media_type == 1)
-			{
-				$media = ORM::factory('incident', $marker->incident_id)->media;
-				if ($media->count())
-				{
-					foreach ($media as $photo)
-					{
-						if ($photo->media_thumb)
-						{ 
-							// Get the first thumb
-							$prefix = url::base().Kohana::config('upload.relative_directory');
-							$thumb = $prefix."/".$photo->media_thumb;
-							break;
-						}
-					}
-				}
-      }
-
-      // If we should decay on end then we need to find out if the incident has
-      // ended
-      $incidentHasEnded = FALSE;
-      if ($shouldDecayOnEnd) {
-        // TODO: Is there a better way to do this with the Kohana ORM libs?
-        $query = 'SELECT count(*) count '.
-          'FROM '. Kohana::config('database.default.table_prefix'). 'endtime as endtime '.
-          'LEFT JOIN '. Kohana::config('database.default.table_prefix'). 'incident as incident '.
-          'ON (incident.id = endtime.incident_id) '.
-          'WHERE incident.incident_active = 1 '.
-          'AND endtime.endtime_date < "'. date("Y-m-d H:i:s") .'" '.
-          'AND remain_on_map = 2 '.
-          'AND incident.id = '. $marker->incident_id;
-        $result = $db->query($query);
-        foreach ($result as $row) {
-          $incidentHasEnded = $row->count;
-        }
-      }
-
-      /* get the icon from the associated categories */
-      // TODO: the Incident_Model is loosing its bindings after the second 
-      // iteration
-      // TODO: this does not take into account table_prefix
-      //$incident = ORM::factory('incident', $marker->incident_id)->with('category');
-      $query = 'SELECT category.* FROM incident '.
-        'LEFT JOIN incident_category ON (incident.id = incident_category.incident_id) '.
-        'LEFT JOIN category ON (incident_category.category_id = category.id) '.
-        'WHERE incident.id = '. $marker->incident_id;
-      $cats = $db->query($query);
-      $icon = Array();
-      if ($cats->count())
-      {
-        foreach ($cats as $category)
-        {
-          if ($category->category_image)
-          { 
-            // TODO: this should be an array.
-            $iconImage = $prefix."/". $category->category_image;
-            // If the endtime and decayimage modules are installed we should
-            // use the decayimage associated with the category if it is past
-            // the incidents endtime
-            if ($incidentHasEnded) {
-              $decayImageObject = ORM::factory('decayimage')
-                ->where('category_id', $category->id)
-                ->find();
-              if ($decayImageObject->loaded) {
-                // Account for the default icon
-                // TODO: this should be loaded from a default stored in the 
-                // Model
-                $iconImage = $prefix."/". $decayImageObject->decayimage_thumb;
-                if ($decayImageObject->decayimage_thumb == "Question_icon_thumb.png") {
-                  $iconImage = url::site() ."plugins/decayimage/images/". 
-                    $decayImageObject->decayimage_thumb;
-                }
-              }
-            }
-            $icon[] = $iconImage;
-          }
-        }
-      }
-
-
-      $features[] = $this->_build_json_object(
-        $marker, $cats->as_array(), $color, 
-        $icon, $thumb, $incidentHasEnded);
-    }
-
-    $json['type'] = "FeatureCollection";
-    $json['features'] = $features;
-    $json['decayimage_default_icon'] = $decayimage_default_icon;  
-    $json = json_encode($json);	
-
-    header('Content-type: application/json; charset=utf-8');
-
-    // This adds support for jsonp
-    // TODO: XSS!  The _GET below needs to get sanitized!
-    $this->template->json = isset($_GET['callback'])
-      ?  "{$_GET['callback']}($json)"
-      : $json;
-  }
-
-  private function _build_json_object(
-        $marker, $category, $color, 
-        $icon, $thumb, $incidentHasEnded) {
-
-    // This bit below is rediculous!
-    $encoded_title = utf8tohtml::convert($marker->incident_title, TRUE);
-    $encoded_title = str_ireplace('"','&#34;',$encoded_title);
-    $encoded_title = json_encode($encoded_title);
-    $encoded_title = str_ireplace('"', '', $encoded_title);
-    $encoded_title = "<a href='". url::base().  "reports/view/".
-      $marker->incident_id.  "'>".  $encoded_title;
-    $encoded_title = str_replace(chr(13), ' ', $encoded_title);
-    $encoded_title.= "</a>";
-    $encoded_title = str_replace(chr(10), ' ', $encoded_title);
-
-    $object['type'] = 'Feature';
-    $object['properties'] = array(
-      'id' => $marker->incident_id,
-      'name' => '',
-      'link' => url::base()."reports/view/".$marker->incident_id,
-      'category' => (isset($category)?$category:array()),
-      'color' => $color,
-      'icon' => $icon,
-      'thumb' => $thumb,
-      'timestamp' => strtotime($marker->incident_date),
-      'title' => $marker->incident_title,
-      'body' => $marker->incident_description
-    );
-    $object['geometry'] = array(
-      'type' => 'Point',
-      'coordinates' => array( $marker->longitude, $marker->latitude )
-    );
-    $object['incidentHasEnded'] = ($incidentHasEnded ? 1 : 0) ;
-
-    return $object;
-  }
-		
-	/**
-	 * Get Geometry JSON
-	 * @param int $incident_id
-	 * @param string $incident_title
-	 * @param int $incident_date
-	 * @return array $geometry
-	 */
-	private function _get_geometry($incident_id, $incident_title, $incident_date)
+	public function index()
 	{
-		$geometry = array();
-		if ($incident_id)
+		// Cacheable Controller
+		$this->is_cachable = TRUE;
+
+		$this->template->header->this_page = 'reports';
+		$this->template->content = new View('reports');
+		$this->themes->js = new View('reports_js');
+    Kohana::log('info', 'decayimage::index _get_report_listing_view()');
+
+		// Store any exisitng URL parameters
+		$this->themes->js->url_params = json_encode($_GET);
+
+		// Enable the map
+		$this->themes->map_enabled = TRUE;
+
+		// Set the latitude and longitude
+		$this->themes->js->latitude = Kohana::config('settings.default_lat');
+		$this->themes->js->longitude = Kohana::config('settings.default_lon');
+		$this->themes->js->default_map = Kohana::config('settings.default_map');
+		$this->themes->js->default_zoom = Kohana::config('settings.default_zoom');
+
+		// Load the alert radius view
+		$alert_radius_view = new View('alert_radius_view');
+		$alert_radius_view->show_usage_info = FALSE;
+		$alert_radius_view->enable_find_location = FALSE;
+		$alert_radius_view->css_class = "rb_location-radius";
+
+		$this->template->content->alert_radius_view = $alert_radius_view;
+
+		// Get locale
+		$l = Kohana::config('locale.language.0');
+
+    // Get the report listing view
+		$report_listing_view = $this->_get_report_listing_view($l);
+
+		// Set the view
+		$this->template->content->report_listing_view = $report_listing_view;
+
+		// Load the category
+		$category_id = (isset($_GET['c']) AND intval($_GET['c']) > 0)? intval($_GET['c']) : 0;
+		$category = ORM::factory('category', $category_id);
+
+		if ($category->loaded)
 		{
-			$geom_data = $this->_get_geometry_data_for_incident($incident_id);
-			$wkt = new Wkt();
-
-			foreach ( $geom_data as $item )
-			{
-				$geom = $wkt->read($item->geometry);
-				$geom_array = $geom->getGeoInterface();
-
-				$json_item = "{";
-				$json_item .= "\"type\":\"Feature\",";
-				$json_item .= "\"properties\": {";
-				$json_item .= "\"id\": \"".$incident_id."\", ";
-				$json_item .= "\"feature_id\": \"".$item->id."\", ";
-
-				$title = ($item->geometry_label) ? 
-					utf8tohtml::convert($item->geometry_label,TRUE) : 
-					utf8tohtml::convert($incident_title,TRUE);
-					
-				$fillcolor = ($item->geometry_color) ? 
-					utf8tohtml::convert($item->geometry_color,TRUE) : "ffcc66";
-					
-				$strokecolor = ($item->geometry_color) ? 
-					utf8tohtml::convert($item->geometry_color,TRUE) : "CC0000";
-					
-				$strokewidth = ($item->geometry_strokewidth) ? $item->geometry_strokewidth : "3";
-
-				$json_item .= "\"name\":\"" . str_replace(chr(10), ' ', str_replace(chr(13), ' ', "<a href='" . url::base() . "reports/view/" . $incident_id . "'>".$title."</a>")) . "\",";
-
-				$json_item .= "\"description\": \"" . utf8tohtml::convert($item->geometry_comment,TRUE) . "\", ";
-				$json_item .= "\"color\": \"" . $fillcolor . "\", ";
-				$json_item .= "\"strokecolor\": \"" . $strokecolor . "\", ";
-				$json_item .= "\"strokewidth\": \"" . $strokewidth . "\", ";
-				$json_item .= "\"link\": \"".url::base()."reports/view/".$incident_id."\", ";
-				$json_item .= "\"category\":[0], ";
-				$json_item .= "\"timestamp\": \"" . strtotime($incident_date) . "\"";
-				$json_item .= "},\"geometry\":".json_encode($geom_array)."}";
-				$geometry[] = $json_item;
-			}
+			// Set the category title
+			$this->template->content->category_title = Category_Lang_Model::category_title($category_id,$l);
 		}
-		
-		return $geometry;
-  }
-
-	/**
-	 * Get geometry records from the database and cache 'em.
-	 *
-	 * They're heavily read from, no point going back to the db constantly to
-	 * get them.
-	 * @param int $incident_id - Incident to get geometry for
-	 * @return array
-	 */
-	public function _get_geometry_data_for_incident($incident_id) {
-		if (self::$geometry_data) {
-			return isset(self::$geometry_data[$incident_id]) ? self::$geometry_data[$incident_id] : array();
-		}
-
-		$db = new Database();
-		// Get Incident Geometries via SQL query as ORM can't handle Spatial Data
-		$sql = "SELECT id, incident_id, AsText(geometry) as geometry, geometry_label, 
-			geometry_comment, geometry_color, geometry_strokewidth FROM ".$this->table_prefix."geometry";
-		$query = $db->query($sql);
-
-		foreach ( $query as $item )
+		else
 		{
-			self::$geometry_data[$item->incident_id][] = $item;
+			$this->template->content->category_title = "";
 		}
 
-		return isset(self::$geometry_data[$incident_id]) ? self::$geometry_data[$incident_id] : array();
+		// Collect report stats
+		$this->template->content->report_stats = new View('reports_stats');
+		// Total Reports
+
+		$total_reports = Incident_Model::get_total_reports(TRUE);
+
+		// Get the date of the oldest report
+		if (isset($_GET['s']) AND !empty($_GET['s']) AND intval($_GET['s']) > 0)
+		{
+			$oldest_timestamp =  intval($_GET['s']);
+		}
+		else
+		{
+			$oldest_timestamp = Incident_Model::get_oldest_report_timestamp();
+		}
+
+		//Get the date of the latest report
+		if (isset($_GET['e']) AND !empty($_GET['e']) AND intval($_GET['e']) > 0)
+		{
+			$latest_timestamp = intval($_GET['e']);
+		}
+		else
+		{
+			$latest_timestamp = Incident_Model::get_latest_report_timestamp();
+		}
+
+
+		// Round the number of days up to the nearest full day
+		$days_since = ceil((time() - $oldest_timestamp) / 86400);
+		$avg_reports_per_day = ($days_since < 1)? $total_reports : round(($total_reports / $days_since),2);
+
+		// Percent Verified
+		$total_verified = Incident_Model::get_total_reports_by_verified(TRUE);
+		$percent_verified = ($total_reports == 0) ? '-' : round((($total_verified / $total_reports) * 100),2).'%';
+
+		// Category tree view
+		$this->template->content->category_tree_view = category::get_category_tree_view();
+
+		// Additional view content
+		$this->template->content->custom_forms_filter = new View('reports_submit_custom_forms');
+		$disp_custom_fields = customforms::get_custom_form_fields();
+		$this->template->content->custom_forms_filter->disp_custom_fields = $disp_custom_fields;
+		$this->template->content->oldest_timestamp = $oldest_timestamp;
+		$this->template->content->latest_timestamp = $latest_timestamp;
+		$this->template->content->report_stats->total_reports = $total_reports;
+		$this->template->content->report_stats->avg_reports_per_day = $avg_reports_per_day;
+		$this->template->content->report_stats->percent_verified = $percent_verified;
+		$this->template->content->services = Service_Model::get_array();
+
+		$this->template->header->header_block = $this->themes->header_block();
+		$this->template->footer->footer_block = $this->themes->footer_block();
 	}
 
+	/**
+	 * Helper method to load the report listing view
+	 */
+	private function _get_report_listing_view($locale = '')
+	{
+		// Check if the local is empty
+		if (empty($locale))
+		{
+			$locale = Kohana::config('locale.language.0');
+		}
+
+		// Load the report listing view
+		$report_listing = new View('reports_listing');
+
+		// Fetch all incidents
+		$all_incidents = reports::fetch_incidents();
+
+		// Reports
+		$incidents = Incident_Model::get_incidents(reports::$params);
+
+		// Swap out category titles with their proper localizations using an array (cleaner way to do this?)
+		$localized_categories = array();
+		foreach ($incidents as $incident)
+		{
+			$incident = ORM::factory('incident', $incident->incident_id);
+			foreach ($incident->category AS $category)
+			{
+				$ct = (string)$category->category_title;
+				if ( ! isset($localized_categories[$ct]))
+				{
+					$localized_categories[$ct] = Category_Lang_Model::category_title($category->id, $locale);
+				}
+			}
+		}
+		// Set the view content
+		$report_listing->incidents = $incidents;
+		$report_listing->localized_categories = $localized_categories;
+
+		//Set default as not showing pagination. Will change below if necessary.
+		$report_listing->pagination = "";
+
+		// Pagination and Total Num of Report Stats
+    $plural = (count($incidents) > 1)? "" : "s";
+
+    $report_listing->stats_breadcrumb = 
+      count($incidents).' '.Kohana::lang('ui_admin.reports').$plural;
+
+		// Return
+		return $report_listing;
+	}
 
 }
 
