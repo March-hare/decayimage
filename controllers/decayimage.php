@@ -47,7 +47,6 @@ class Decayimage_Controller extends Main_Controller {
 		$this->template->header->this_page = 'reports';
 		$this->template->content = new View('reports');
 		$this->themes->js = new View('reports_js');
-    Kohana::log('info', 'decayimage::index _get_report_listing_view()');
 
 		// Store any exisitng URL parameters
 		$this->themes->js->url_params = json_encode($_GET);
@@ -143,6 +142,22 @@ class Decayimage_Controller extends Main_Controller {
 
 		$this->template->header->header_block = $this->themes->header_block();
 		$this->template->footer->footer_block = $this->themes->footer_block();
+	}
+
+	public function fetch_reports()
+	{
+		$this->template = "";
+		$this->auto_render = FALSE;
+
+		if ($_GET)
+		{
+			$report_listing_view = $this->_get_report_listing_view();
+			print $report_listing_view;
+		}
+		else
+		{
+			print "";
+		}
 	}
 
 	/**

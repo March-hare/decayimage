@@ -193,6 +193,59 @@ $new_js = <<<ENDJS
   // Add feature selection events
   addFeatureSelectionEvents(map, vLayer);
 });
+
+	/**
+	 * Gets the reports using the specified parameters
+   */
+  var fetchReportsOrig = fetchReports;
+	fetchReports = (function() {
+		//check and see what view was last viewed: list, or map.
+		var lastDisplyedWasMap = $("#rb_map-view").css("display") != "none";
+		
+		// Reset the map loading tracker
+		mapLoaded = 0;
+		
+		var loadingURL = "<?php echo url::file_loc('img').'media/img/loading_g.gif'; ?>"
+		var statusHtml = "<div style=\"width: 100%; margin-top: 100px;\" align=\"center\">" + 
+					"<div><img src=\""+loadingURL+"\" border=\"0\"></div>" + 
+					"<p style=\"padding: 10px 2px;\"><h3><?php echo Kohana::lang('ui_main.loading_reports'); ?>...</h3></p>"
+					"</div>";
+	
+		$("#reports-box").html(statusHtml);
+		
+		// Check if there are any parameters
+		if ($.isEmptyObject(urlParameters))
+		{
+			urlParameters = {show: "all"}
+		}
+		
+		// Get the content for the new page
+		$.get("<?php echo url::site().'decayimage/fetch_reports'?>",
+			urlParameters,
+			function(data) {
+				if (data != null && data != "" && data.length > 0) {
+				
+					// Animation delay
+					setTimeout(function(){
+						$("#reports-box").html(data);
+				
+						attachPagingEvents();
+						addReportHoverEvents();
+						deSelectedFilters = [];
+						
+						//if the map was the last thing the user was looking at:
+						if(lastDisplyedWasMap)
+						{
+							switchViews($("#reports-box .report-list-toggle a.map"));
+							//$('ul.report-list-toggle li a.map').trigger('click');
+						}
+						
+					}, 400);
+				}
+			}
+		);
+	});
+  
 ENDJS;
 
     Event::$data = $matches[1] . $new_js . $matches[2];
