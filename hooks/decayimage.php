@@ -55,6 +55,8 @@ class decayimage extends endtime {
     preg_match(':^(.+)(//-->\s*</script>\s*)$:s', Event::$data, $matches);
     $layerName = Kohana::lang('ui_main.reports');
     $site = url::site();
+    $file_loc = url::file_loc('img');
+    $loading_reports = Kohana::lang('ui_main.loading_reports');
 
 $new_js = <<<ENDJS
   var showIncidentMapOrig = showIncidentMap;
@@ -116,15 +118,11 @@ $new_js = <<<ENDJS
   // URL to be used for fetching the incidents
   fetchURL = "{$site}api/?task=decayimage";
 
-  // TODO: for right now all additional parameters here are disabled  
-  /*
-  // Generate the url parameter string
-  parameterStr = makeUrlParamStr("", urlParameters);
+  // Right now we only support filtering by categories
+  if (typeof urlParameters.c != 'undefined') {
+    fetchURL += '&by=catid&id=['+ urlParameters.c.join() +']';
+  }
   
-  // Add the parameters to the fetch URL
-  fetchURL += "?" + parameterStr;
-   */
-
   // Fetch the incidents
   var json = jQuery.getJSON(fetchURL, function(data) {
     $.each(data.payload.incidents, function(key, val) {
@@ -193,6 +191,59 @@ $new_js = <<<ENDJS
   // Add feature selection events
   addFeatureSelectionEvents(map, vLayer);
 });
+
+	/**
+	 * Gets the reports using the specified parameters
+   */
+  var fetchReportsOrig = fetchReports;
+	fetchReports = (function() {
+		//check and see what view was last viewed: list, or map.
+		var lastDisplyedWasMap = $("#rb_map-view").css("display") != "none";
+		
+		// Reset the map loading tracker
+		mapLoaded = 0;
+		
+		var loadingURL = "{$file_loc}media/img/loading_g.gif";
+		var statusHtml = "<div style=\"width: 100%; margin-top: 100px;\" align=\"center\">" + 
+					"<div><img src=\""+loadingURL+"\" border=\"0\"></div>" + 
+					"<p style=\"padding: 10px 2px;\"><h3>{$loading_reports}...</h3></p>"
+					"</div>";
+	
+		$("#reports-box").html(statusHtml);
+		
+		// Check if there are any parameters
+		if ($.isEmptyObject(urlParameters))
+		{
+			urlParameters = {show: "all"}
+		}
+		
+		// Get the content for the new page
+		$.get("{$site}decayimage/fetch_reports",
+			urlParameters,
+			function(data) {
+				if (data != null && data != "" && data.length > 0) {
+				
+					// Animation delay
+					setTimeout(function(){
+						$("#reports-box").html(data);
+				
+						attachPagingEvents();
+						addReportHoverEvents();
+						deSelectedFilters = [];
+						
+						//if the map was the last thing the user was looking at:
+						if(lastDisplyedWasMap)
+						{
+							switchViews($("#reports-box .report-list-toggle a.map"));
+							//$('ul.report-list-toggle li a.map').trigger('click');
+						}
+						
+					}, 400);
+				}
+			}
+		);
+	});
+  
 ENDJS;
 
     Event::$data = $matches[1] . $new_js . $matches[2];
