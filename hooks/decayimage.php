@@ -55,6 +55,8 @@ class decayimage extends endtime {
     preg_match(':^(.+)(//-->\s*</script>\s*)$:s', Event::$data, $matches);
     $layerName = Kohana::lang('ui_main.reports');
     $site = url::site();
+    $file_loc = url::file_loc('img');
+    $loading_reports = Kohana::lang('ui_main.loading_reports');
 
 $new_js = <<<ENDJS
   var showIncidentMapOrig = showIncidentMap;
@@ -205,11 +207,10 @@ $new_js = <<<ENDJS
 		// Reset the map loading tracker
 		mapLoaded = 0;
 		
-		//var loadingURL = "<?php echo url::file_loc('img').'media/img/loading_g.gif'; ?>"
-		var loadingURL = "{url::file_loc('img')}.'media/img/loading_g.gif'; ?>"
+		var loadingURL = "{$file_loc}media/img/loading_g.gif";
 		var statusHtml = "<div style=\"width: 100%; margin-top: 100px;\" align=\"center\">" + 
 					"<div><img src=\""+loadingURL+"\" border=\"0\"></div>" + 
-					"<p style=\"padding: 10px 2px;\"><h3><?php echo Kohana::lang('ui_main.loading_reports'); ?>...</h3></p>"
+					"<p style=\"padding: 10px 2px;\"><h3>{$loading_reports}...</h3></p>"
 					"</div>";
 	
 		$("#reports-box").html(statusHtml);
@@ -221,7 +222,7 @@ $new_js = <<<ENDJS
 		}
 		
 		// Get the content for the new page
-		$.get("<?php echo url::site().'decayimage/fetch_reports'?>",
+		$.get("{$site}decayimage/fetch_reports",
 			urlParameters,
 			function(data) {
 				if (data != null && data != "" && data.length > 0) {
