@@ -118,15 +118,11 @@ $new_js = <<<ENDJS
   // URL to be used for fetching the incidents
   fetchURL = "{$site}api/?task=decayimage";
 
-  // TODO: for right now all additional parameters here are disabled  
-  /*
-  // Generate the url parameter string
-  parameterStr = makeUrlParamStr("", urlParameters);
+  // Right now we only support filtering by categories
+  if (typeof urlParameters.c != 'undefined') {
+    fetchURL += '&by=catid&id=['+ urlParameters.c.join() +']';
+  }
   
-  // Add the parameters to the fetch URL
-  fetchURL += "?" + parameterStr;
-   */
-
   // Fetch the incidents
   var json = jQuery.getJSON(fetchURL, function(data) {
     $.each(data.payload.incidents, function(key, val) {

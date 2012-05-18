@@ -173,11 +173,19 @@ class Decayimage_Api_Object extends Api_Object_Core {
 				else
 				{
 					$category_id = $this->check_id_value($this->request['id']);
-					$params = array(
-						'c.id = '.$category_id,
-						'c.category_visible = 1'
-					);
-
+          if ($category_id) {
+            $params = array(
+              'c.id = '.$category_id,
+              'c.category_visible = 1'
+            );
+          } else if (preg_match('/\[(\d+(?:,\d+)*)\]/', $this->request['id'], $matches)) {
+            // maybe we were past an array of categories to filter by
+            $params = array();
+            $params = array(
+              'c.id in ('.$matches[1].')',
+              'c.category_visible = 1'
+            );
+          }
 					$this->response_data = $this->_get_incidents($params);
 				}
 			break;
